@@ -1,0 +1,20 @@
+# .NET build artifacts
+bin/
+obj/
+*.user
+
+# IDE
+.vs/
+.vscode/
+*.suo
+.idea/
+
+# PicoGK runtime output (generated geometry, not source)
+*.vdb
+*.nvdb
+output/
+logs/
+
+# OS noise
+.DS_Store
+Thumbs.db
