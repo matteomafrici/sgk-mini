@@ -49,8 +49,15 @@ contract.
 
 - Fedora 44 (native development environment).
 - .NET 9 SDK.
-- PicoGK 2.2.0 (referenced locally from `~/work/leap71-inspect/PicoGK` during
-  development, for source-level learning).
+- PicoGK 26.2.0 native runtime, built from source on this machine
+  (leap71/PicoGKRuntime has no official Linux binaries — only macOS/Windows).
+  Build details: CMake + GCC 16.1.1, OpenVDB/GLFW/imgui via git submodules,
+  Blosc 1.21.7 built separately from source and installed to `/usr/local`.
+  Native `picogk.so` is copied (with symlinks matching the `picogk.26.2`
+  naming expected by the .NET P/Invoke layer) into
+  `src/SGK.Geometry/bin/Debug/net9.0/`. This artifact is machine-specific
+  and NOT versioned in this repo (see `.gitignore`) — it must be rebuilt on
+  any new clone/machine following the build notes archived in the SGK vault.
 
 ## Working principles (antirez style)
 
@@ -90,9 +97,12 @@ checked off — not in anticipation of future needs.
 
 ### Validation checklist
 
-- [ ] Repo builds and runs from a clean clone.
-- [ ] C# + PicoGK integration works (voxel geometry generated and saved).
-- [ ] A minimal physical case can be represented (starting: hollow cylinder).
+- [x] Repo builds and runs from a clean clone (native PicoGK runtime built
+  separately, not versioned — see Environment section).
+- [x] C# + PicoGK integration works (voxel geometry generated, viewer
+  rendered and interactively orbitable).
+- [x] A minimal physical case can be represented (hollow cylinder: OD 20mm,
+  ID 16mm, length 50mm).
 - [ ] Geometry data can be serialized and reused downstream.
 - [ ] Feature extraction from geometry.
 - [ ] Minimal dataset built.
@@ -106,8 +116,14 @@ checked off — not in anticipation of future needs.
 - [x] Repo created on GitHub (private), cloned locally to `~/work/sgk-mini/`.
 - [x] PicoGK verified buildable on Fedora 44 / .NET 9 (outside this repo).
 - [x] `.gitignore` and `README.md` bootstrapped.
-- [ ] First PicoGK project scaffolded.
-- [ ] First voxel shape (hollow cylinder) generated and inspected in PicoGK viewer.
+- [x] First PicoGK project scaffolded (`src/SGK.Geometry`).
+- [x] First voxel shape (hollow cylinder) generated and inspected in PicoGK
+  viewer — native runtime built from source on Fedora 44, validated across
+  6 executions (interactive + agent-invoked, including abrupt SIGINT
+  termination). One intermittent crash during initial build session was
+  root-caused via coredump analysis to a Mesa/Intel ARL driver race
+  condition (`libgallium-26.1.5.so`), external to this codebase and not
+  actionable here.
 
 ### Current task boundaries
 
@@ -118,5 +134,7 @@ only).
 
 ### Next planned step
 
-Scaffold `src/SGK.Geometry` as a .NET console project referencing PicoGK locally,
-then write the first `Program.cs` (Library.Go + hollow cylinder) line by line.
+Serialize the generated voxel geometry (hollow cylinder) to disk in a
+reusable format, as the first step toward feature extraction (pipeline
+step 2). Native runtime build details are archived separately in the SGK
+vault for reproducibility on future machines/clones.
