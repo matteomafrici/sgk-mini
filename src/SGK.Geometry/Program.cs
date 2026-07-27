@@ -1,8 +1,9 @@
-﻿// See https://aka.ms/new-console-template for more information
+// See https://aka.ms/new-console-template for more information
 // Console.WriteLine("Hello, World!");
 
 using PicoGK;
 using System.Numerics;
+using System.IO;
 
 try
 {
@@ -37,8 +38,38 @@ class HollowCylinderTask
 
         voxOutside.BoolSubtract(voxInside);
 
-        Library.oViewer().Add(voxOutside);
+        string vdbPath = Path.Combine("/home/matteo-mafrici/work/sgk-mini/output", "hollow-cylinder.vdb");
+        Directory.CreateDirectory("/home/matteo-mafrici/work/sgk-mini/output");
+
+        using (OpenVdbFile vdb = new(Library.oLibrary()))
+        {
+            vdb.nAdd(voxOutside, "HollowCylinder");
+            vdb.SaveToFile(vdbPath);
+            Console.WriteLine($"Saved VDB: {vdbPath}");
+        }
+
+        Voxels loadedVoxels = Voxels.voxFromVdbFile(vdbPath);
+        Console.WriteLine("Reloaded VDB into voxel field successfully");
+
+        bool isEqual = voxOutside.bIsEqual(loadedVoxels);
+
+        voxOutside.CalculateProperties(out float originalVolume, out BBox3 originalBox);
+        loadedVoxels.CalculateProperties(out float loadedVolume, out BBox3 loadedBox);
+
+        Console.WriteLine($"Original volume [mm^3]: {originalVolume}");
+        Console.WriteLine($"Loaded volume   [mm^3]: {loadedVolume}");
+        Console.WriteLine($"Original bbox: {originalBox}");
+        Console.WriteLine($"Loaded bbox:   {loadedBox}");
+        Console.WriteLine($"Voxel equality: {isEqual}");
+
+        if (!isEqual)
+        {
+            throw new Exception("Reloaded voxel field does not match original voxel field");
+        }
+
+        Library.oViewer().Add(loadedVoxels);
 
         Console.WriteLine("Hollow cylinder generated: OD 20mm, ID 16mm, length 50mm");
+        Console.WriteLine("Serialization round-trip validated successfully");
     }
 }

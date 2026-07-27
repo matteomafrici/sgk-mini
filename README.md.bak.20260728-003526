@@ -103,7 +103,7 @@ checked off — not in anticipation of future needs.
   rendered and interactively orbitable).
 - [x] A minimal physical case can be represented (hollow cylinder: OD 20mm,
   ID 16mm, length 50mm).
-- [x] Geometry data can be serialized and reused downstream.
+- [ ] Geometry data can be serialized and reused downstream.
 - [ ] Feature extraction from geometry.
 - [ ] Minimal dataset built.
 - [ ] Tiny surrogate model trained.
