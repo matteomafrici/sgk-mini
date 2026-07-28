@@ -27,7 +27,7 @@ the whole chain on a deliberately tiny case:
 
 1. Geometry generation (Layer 1 embryo, PicoGK).
 2. Feature extraction from geometry.
-3. A minimal physical case (simplified calculation, possibly CFD/FEM later).
+3. A minimal physical case with analytical ground truth.
 4. A small dataset built from (geometry, physics) pairs.
 5. Training of a tiny surrogate model (Layer 2 embryo).
 6. Inference on a test case.
@@ -81,8 +81,13 @@ archived as a historical reference, clearly marked as validation-only.
 sgk-mini/
 ├── README.md
 ├── .gitignore
+├── output/
+│   ├── hollow-cylinder.vdb
+│   ├── hollow-cylinder.features.json
+│   └── hollow-cylinder.physical-case.json
 └── src/
     └── SGK.Geometry/
+        ├── Program.cs
         └── SGK.Geometry.csproj
 ```
 
@@ -101,10 +106,17 @@ checked off — not in anticipation of future needs.
   separately, not versioned — see Environment section).
 - [x] C# + PicoGK integration works (voxel geometry generated, viewer
   rendered and interactively orbitable).
-- [x] A minimal physical case can be represented (hollow cylinder: OD 20mm,
-  ID 16mm, length 50mm).
-- [x] Geometry data can be serialized and reused downstream.
-- [x] Feature extraction from geometry.
+- [x] Minimal hollow-cylinder geometry generated (OD 20 mm, ID 16 mm, length 50 mm).
+- [x] Geometry serialized to `.vdb`, reloaded, and validated by voxel equality.
+- [x] Minimal feature extraction from geometry.
+- [x] Feature record written to JSON and reloaded through a second code path.
+- [x] Minimal physical case implemented as steady fully developed laminar
+  axial flow in a concentric annulus.
+- [x] Physical record written to JSON and reloaded through a second code path.
+- [x] Analytical global targets saved: mean velocity, Reynolds number,
+  pressure gradient, pressure drop.
+- [x] Analytical local targets saved: sampled axial velocity profile,
+  maximum velocity, inner-wall shear stress, outer-wall shear stress.
 - [ ] Minimal dataset built.
 - [ ] Tiny surrogate model trained.
 - [ ] Inference tested.
@@ -129,27 +141,70 @@ checked off — not in anticipation of future needs.
 - [x] Minimal feature record extracted from post-reload geometry, written to
   `output/hollow-cylinder.features.json`, reloaded through a second code path,
   and validated for schema identity plus minimal numeric sanity.
+- [x] Minimal physical record extracted from the validated feature record and
+  written to `output/hollow-cylinder.physical-case.json`.
+- [x] Physical record reloaded through a second code path and validated for
+  schema identity, geometric sanity, laminar-regime sanity, and positive
+  pressure-drop results.
+- [x] Analytical annulus benchmark extended with local validation targets:
+  sampled axial velocity profile, maximum velocity location, and wall shear
+  stress on both inner and outer walls.
 
 ### Current task boundaries
 
-This checkpoint is no longer just Layer 1 geometry generation. It now validates
-the first real data handoff across layer boundaries:
+This checkpoint now validates the first complete geometry-to-physics mini-slice:
 
 1. Generate hollow-cylinder voxel geometry.
 2. Save geometry to `.vdb`.
 3. Reload geometry from `.vdb`.
 4. Extract minimal numeric features from the reloaded geometry.
 5. Save the feature record to JSON.
-6. Read the JSON back through a second code path.
-7. Validate schema identity and minimal numeric sanity.
+6. Read the feature JSON back through a second code path.
+7. Compute an analytical physical benchmark from the validated feature record.
+8. Save the physical record to JSON.
+9. Read the physical JSON back through a second code path.
+10. Validate schema identity and minimal physical sanity.
+11. Save analytical local targets for future CFD comparison.
 
-This remains intentionally narrow. It still does not touch OpenFOAM, PhysicsNeMo,
-FEM, or CEA.
+This remains intentionally narrow. It still does not touch OpenFOAM execution,
+PhysicsNeMo, FEM, or CEA.
+
+### Physical case used now
+
+The current physical benchmark is:
+
+- Steady flow.
+- Incompressible Newtonian fluid.
+- Fully developed axial laminar flow.
+- Concentric annular passage.
+- Constant cross-section.
+- No-slip walls.
+- Entry and exit effects neglected.
+
+The hollow-cylinder voxel geometry is interpreted as the solid wall of the flow
+passage. The fluid domain is the concentric annular gap implied by the geometry,
+not the solid voxel object itself.
+
+### Why this case
+
+This case is small, analytical, and honest. It consumes the feature record already
+validated by the geometry pipeline and produces both global and local quantities
+that are useful for future solver validation.
+
+That makes it a good SGK-mini checkpoint: small code, explicit assumptions,
+numerical output that can be saved, and a direct future path toward OpenFOAM
+comparison.
 
 ### Next planned step
 
-Use the validated feature record as input to a minimal physical case
-(proxy calculation), so the next checkpoint tests the first downstream
-consumer after geometry/feature extraction. Native runtime build details
-remain archived separately in the SGK vault for reproducibility on future
-machines/clones.
+Use the current analytical annulus benchmark as ground truth for the first
+OpenFOAM-oriented validation step. The next checkpoint should compare future CFD
+results against:
+
+- pressure gradient / pressure drop,
+- sampled axial velocity profile,
+- maximum velocity and its radial location,
+- wall shear stress at inner and outer walls.
+
+Native runtime build details remain archived separately in the SGK vault for
+reproducibility on future machines/clones.
