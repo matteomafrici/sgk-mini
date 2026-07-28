@@ -93,7 +93,7 @@ checked off — not in anticipation of future needs.
 
 ## Current status
 
-**Last updated:** 2026-07-27
+**Last updated:** 2026-07-28
 
 ### Validation checklist
 
@@ -104,7 +104,7 @@ checked off — not in anticipation of future needs.
 - [x] A minimal physical case can be represented (hollow cylinder: OD 20mm,
   ID 16mm, length 50mm).
 - [x] Geometry data can be serialized and reused downstream.
-- [ ] Feature extraction from geometry.
+- [x] Feature extraction from geometry.
 - [ ] Minimal dataset built.
 - [ ] Tiny surrogate model trained.
 - [ ] Inference tested.
@@ -124,17 +124,32 @@ checked off — not in anticipation of future needs.
   root-caused via coredump analysis to a Mesa/Intel ARL driver race
   condition (`libgallium-26.1.5.so`), external to this codebase and not
   actionable here.
+- [x] Hollow-cylinder voxel geometry serialized to `.vdb`, reloaded, and
+  validated by voxel equality, identical volume, and identical bounding box.
+- [x] Minimal feature record extracted from post-reload geometry, written to
+  `output/hollow-cylinder.features.json`, reloaded through a second code path,
+  and validated for schema identity plus minimal numeric sanity.
 
 ### Current task boundaries
 
-This session (bootstrap task) does not touch OpenFOAM, PhysicsNeMo, FEM, or CEA —
-those belong to later steps of the pipeline above (steps 3-6), not because they are
-excluded from SGK Mini, but because this task's scope is narrower (Layer 1 embryo
-only).
+This checkpoint is no longer just Layer 1 geometry generation. It now validates
+the first real data handoff across layer boundaries:
+
+1. Generate hollow-cylinder voxel geometry.
+2. Save geometry to `.vdb`.
+3. Reload geometry from `.vdb`.
+4. Extract minimal numeric features from the reloaded geometry.
+5. Save the feature record to JSON.
+6. Read the JSON back through a second code path.
+7. Validate schema identity and minimal numeric sanity.
+
+This remains intentionally narrow. It still does not touch OpenFOAM, PhysicsNeMo,
+FEM, or CEA.
 
 ### Next planned step
 
-Serialize the generated voxel geometry (hollow cylinder) to disk in a
-reusable format, as the first step toward feature extraction (pipeline
-step 2). Native runtime build details are archived separately in the SGK
-vault for reproducibility on future machines/clones.
+Use the validated feature record as input to a minimal physical case
+(proxy calculation), so the next checkpoint tests the first downstream
+consumer after geometry/feature extraction. Native runtime build details
+remain archived separately in the SGK vault for reproducibility on future
+machines/clones.
