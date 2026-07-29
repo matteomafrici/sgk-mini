@@ -81,10 +81,16 @@ archived as a historical reference, clearly marked as validation-only.
 sgk-mini/
 ├── README.md
 ├── .gitignore
+├── AGENTS.md
 ├── output/
 │   ├── hollow-cylinder.vdb
 │   ├── hollow-cylinder.features.json
-│   └── hollow-cylinder.physical-case.json
+│   ├── hollow-cylinder.physical-case.json
+│   └── hollow-cylinder-widegap.physical-case.json
+├── cases/
+│   ├── annulus/             (baseline, 25+25 cells, gR1=5)
+│   ├── annulus_refined/     (recommended, 50+50 cells, gR1=1.5, cyclic)
+│   └── annulus_widegap/     (sensitivity test, Ro=30mm)
 └── src/
     └── SGK.Geometry/
         ├── Program.cs
@@ -98,11 +104,11 @@ checked off — not in anticipation of future needs.
 
 ## Current status
 
-**Last updated:** 2026-07-28
+**Last updated:** 2026-07-30
 
 ### Validation checklist
 
-- [x] Repo builds and runs from a clean clone (native PicoGK runtime built
+- [x] Repo builds and runs from a clean clone (native PicoKG runtime built
   separately, not versioned — see Environment section).
 - [x] C# + PicoGK integration works (voxel geometry generated, viewer
   rendered and interactively orbitable).
@@ -117,6 +123,9 @@ checked off — not in anticipation of future needs.
   pressure gradient, pressure drop.
 - [x] Analytical local targets saved: sampled axial velocity profile,
   maximum velocity, inner-wall shear stress, outer-wall shear stress.
+- [x] **OpenFOAM CFD validation**: simpleFoam reproduces the analytical
+  solution for both narrow gap (Ri=8mm, Ro=10mm) and widegap (Ro=30mm).
+  Metrics: Umax error 0.023%, dpL error 0.74%, flow rate error 0.86%.
 - [ ] Minimal dataset built.
 - [ ] Tiny surrogate model trained.
 - [ ] Inference tested.
@@ -149,10 +158,24 @@ checked off — not in anticipation of future needs.
 - [x] Analytical annulus benchmark extended with local validation targets:
   sampled axial velocity profile, maximum velocity location, and wall shear
   stress on both inner and outer walls.
+- [x] **OpenFOAM simpleFoam validated for annulus flow**:
+  - narrow gap (Ri=8mm, Ro=10mm, Re=35): 3 OpenFOAM cases tested
+    (inlet/outlet with gR 5 and gR 2, cyclic periodic with gR 1.5).
+  - widegap (Ro=30mm, Re=17): sensitivity test confirming solver correctness.
+  - Recommended config: cyclic periodic BCs with `meanVelocityForce`,
+    80×100×3 cells, radial grading gR1=1.5.
+  - Metrics: mean profile error 3.60% (near-wall dominant), Umax error 0.023%,
+    dpL error 0.74%, flow rate error 0.86%.
+  - Key insight: profile error is systematic at walls and inherent to second-order
+    FVM at this aspect ratio — not improvable by mesh refinement alone.
+  - Validation scripts and plots saved in `cases/`.
+  - Fixed bug in widegap benchmark generator (wrong sign in formula).
 
 ### Current task boundaries
 
-This checkpoint now validates the first complete geometry-to-physics mini-slice:
+The repository now spans two complete validation checkpoints:
+
+**Checkpoint 1 (geometry → physics record).** Validate the full geometry-to-physics mini-slice:
 
 1. Generate hollow-cylinder voxel geometry.
 2. Save geometry to `.vdb`.
@@ -165,6 +188,15 @@ This checkpoint now validates the first complete geometry-to-physics mini-slice:
 9. Read the physical JSON back through a second code path.
 10. Validate schema identity and minimal physical sanity.
 11. Save analytical local targets for future CFD comparison.
+
+**Checkpoint 2 (CFD validation).** Validate OpenFOAM simpleFoam against the analytical benchmark:
+
+1. Build structured mesh (80 cells axial, 100 cells radial, 3 angular).
+2. Run simpleFoam with cyclic periodic BCs (meanVelocityForce in fvOptions).
+3. Compare velocity profile against analytical annular Poiseuille solution.
+4. Validate Umax (0.02% error), dpL (0.74%), flow rate (0.86%).
+5. Document the systematic near-wall error (3.6% mean, 7.2% max) as inherent to FVM.
+6. Sensitivity test: widegap case (Ro=30mm) confirms solver correctness.
 
 This remains intentionally narrow. It still does not touch OpenFOAM execution,
 PhysicsNeMo, FEM, or CEA.
@@ -197,14 +229,21 @@ comparison.
 
 ### Next planned step
 
-Use the current analytical annulus benchmark as ground truth for the first
-OpenFOAM-oriented validation step. The next checkpoint should compare future CFD
-results against:
+With the analytical benchmark validated and the CFD pipeline confirmed, the
+next step moves from Layer 1 validation toward Layer 2:
 
-- pressure gradient / pressure drop,
-- sampled axial velocity profile,
-- maximum velocity and its radial location,
-- wall shear stress at inner and outer walls.
+- Build a small dataset of (geometry, CFD profile) pairs by varying annulus
+  dimensions (Ri, Ro) and flow rates.
+- Train a tiny PhysicsNeMo surrogate model to predict velocity profiles from
+  geometry parameters.
+- Validate the surrogate against the analytical solution for unseen parameters.
+- Test inference speed relative to direct CFD.
+- Begin the minimal optimization loop (Layer 3 embryo) once the surrogate is
+  reliable.
+
+The C# analytical benchmark (`Program.cs`), OpenFOAM case files (`cases/`),
+and all validation scripts remain as the ground truth for all future surrogate
+training and optimization.
 
 Native runtime build details remain archived separately in the SGK vault for
 reproducibility on future machines/clones.

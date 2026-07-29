@@ -1,0 +1,157 @@
+/*--------------------------------*- C++ -*----------------------------------*\
+| =========                 |                                                 |
+| \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox           |
+|  \\    /   O peration     | Version:  v2606                                 |
+|   \\  /    A nd           | Website:  www.openfoam.com                      |
+|    \\/     M anipulation  |                                                 |
+\*---------------------------------------------------------------------------*/
+FoamFile
+{
+    version     2.0;
+    format      ascii;
+    class       dictionary;
+    object      blockMeshDict;
+}
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+
+halfAngle   15;
+Ri          0.008002998;
+Ro          0.009997753;
+L           0.05;
+Rmid        #eval{ ($Ri + $Ro)/2 };
+
+sinHA       #eval{ sin(degToRad($halfAngle)) };
+cosHA       #eval{ cos(degToRad($halfAngle)) };
+
+yi          #eval{ $Ri * $sinHA };
+zi          #eval{ $Ri * $cosHA };
+ym          #eval{ $Rmid * $sinHA };
+zm          #eval{ $Rmid * $cosHA };
+yo          #eval{ $Ro * $sinHA };
+zo          #eval{ $Ro * $cosHA };
+
+nX          80;
+nR1         25;
+nR2         25;
+nAng        3;
+
+gR1         5;
+gR2         0.2;
+
+// ---- vertices ----
+// Order: ξ=x(axial), η=r(radial), ζ=θ(angular front→back)
+// Each radius: (x=0|x=L) × (θ=front|back)
+vertices
+(
+    // η=0 (R_i)
+    (0           $yi    $zi)    // 0: x=0,  η=0(Ri), ζ=0(front)
+    ($L          $yi    $zi)    // 1: x=L,  η=0(Ri), ζ=0(front)
+    ($L         -$yi    $zi)    // 2: x=L,  η=0(Ri), ζ=1(back)
+    (0          -$yi    $zi)    // 3: x=0,  η=0(Ri), ζ=1(back)
+
+    // η=1 (R_mid)
+    (0           $ym    $zm)    // 4: x=0,  η=1(Rmid), ζ=0(front)
+    ($L          $ym    $zm)    // 5: x=L,  η=1(Rmid), ζ=0(front)
+    ($L         -$ym    $zm)    // 6: x=L,  η=1(Rmid), ζ=1(back)
+    (0          -$ym    $zm)    // 7: x=0,  η=1(Rmid), ζ=1(back)
+
+    // η=2 (R_o)
+    (0           $yo    $zo)    // 8:  x=0,  η=2(Ro), ζ=0(front)
+    ($L          $yo    $zo)    // 9:  x=L,  η=2(Ro), ζ=0(front)
+    ($L         -$yo    $zo)    // 10: x=L,  η=2(Ro), ζ=1(back)
+    (0          -$yo    $zo)    // 11: x=0,  η=2(Ro), ζ=1(back)
+);
+
+// ---- arcs (back→front at each radius) ----
+edges
+(
+    arc 3 0 (0 0 #eval{$Ri})
+    arc 2 1 ($L 0 #eval{$Ri})
+    arc 7 4 (0 0 #eval{$Rmid})
+    arc 6 5 ($L 0 #eval{$Rmid})
+    arc 11 8 (0 0 #eval{$Ro})
+    arc 10 9 ($L 0 #eval{$Ro})
+);
+
+// ---- blocks ----
+// ζ goes from front→back, so ζ=0=front(+θ), ζ=1=back(-θ)
+blocks
+(
+    // Block 1: R_i → R_mid
+    hex (0 1 5 4 3 2 6 7) ($nX $nR1 $nAng) simpleGrading (1 $gR1 1)
+
+    // Block 2: R_mid → R_o
+    hex (4 5 9 8 7 6 10 11) ($nX $nR2 $nAng) simpleGrading (1 $gR2 1)
+);
+
+// ---- boundaries ----
+boundary
+(
+    inlet
+    {
+        type patch;
+        faces
+        (
+            (0 4 7 3)
+            (4 8 11 7)
+        );
+    }
+
+    outlet
+    {
+        type patch;
+        faces
+        (
+            (1 5 6 2)
+            (5 9 10 6)
+        );
+    }
+
+    innerWall
+    {
+        type wall;
+        faces
+        (
+            (0 1 2 3)
+        );
+    }
+
+    outerWall
+    {
+        type wall;
+        faces
+        (
+            (8 9 10 11)
+        );
+    }
+
+    cyclicSideFront
+    {
+        type cyclicAMI;
+        neighbourPatch cyclicSideBack;
+        faces
+        (
+            (0 1 5 4)
+            (4 5 9 8)
+        );
+        transform rotational;
+        rotationAxis (1 0 0);
+        rotationCentre (0 0 0);
+    }
+
+    cyclicSideBack
+    {
+        type cyclicAMI;
+        neighbourPatch cyclicSideFront;
+        faces
+        (
+            (3 2 6 7)
+            (7 6 10 11)
+        );
+        transform rotational;
+        rotationAxis (1 0 0);
+        rotationCentre (0 0 0);
+    }
+);
+
+// ************************************************************************* //

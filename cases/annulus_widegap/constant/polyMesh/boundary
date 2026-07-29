@@ -1,0 +1,77 @@
+/*--------------------------------*- C++ -*----------------------------------*\
+| =========                 |                                                 |
+| \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox           |
+|  \\    /   O peration     | Version:  2606                                  |
+|   \\  /    A nd           | Website:  www.openfoam.com                      |
+|    \\/     M anipulation  |                                                 |
+\*---------------------------------------------------------------------------*/
+FoamFile
+{
+    version     2.0;
+    format      ascii;
+    arch        "LSB;label=32;scalar=64";
+    class       polyBoundaryMesh;
+    location    "constant/polyMesh";
+    object      boundary;
+}
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+
+6
+(
+    inlet
+    {
+        type            patch;
+        nFaces          150;
+        startFace       31610;
+    }
+    outlet
+    {
+        type            patch;
+        nFaces          150;
+        startFace       31760;
+    }
+    innerWall
+    {
+        type            wall;
+        inGroups        1(wall);
+        nFaces          240;
+        startFace       31910;
+    }
+    outerWall
+    {
+        type            wall;
+        inGroups        1(wall);
+        nFaces          240;
+        startFace       32150;
+    }
+    cyclicSideFront
+    {
+        type            cyclicAMI;
+        inGroups        1(cyclicAMI);
+        nFaces          4000;
+        startFace       32390;
+        matchTolerance  0.0001;
+        transform       rotational;
+        neighbourPatch  cyclicSideBack;
+        rotationAxis    (1 0 0);
+        rotationCentre  (0 0 0);
+        AMIMethod       faceAreaWeightAMI;
+        restartUncoveredSourceFace 1;
+    }
+    cyclicSideBack
+    {
+        type            cyclicAMI;
+        inGroups        1(cyclicAMI);
+        nFaces          4000;
+        startFace       36390;
+        matchTolerance  0.0001;
+        transform       rotational;
+        neighbourPatch  cyclicSideFront;
+        rotationAxis    (1 0 0);
+        rotationCentre  (0 0 0);
+        AMIMethod       faceAreaWeightAMI;
+        restartUncoveredSourceFace 1;
+    }
+)
+
+// ************************************************************************* //
