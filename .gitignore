@@ -20,3 +20,6 @@ logs/
 Thumbs.db
 # ImGui window layout (session/machine-specific, auto-generated)
 imgui.ini
+
+# Local AI agent instructions (project-specific, not for repo)
+AGENTS.md
