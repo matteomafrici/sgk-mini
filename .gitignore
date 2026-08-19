@@ -23,3 +23,11 @@ imgui.ini
 
 # Local AI agent instructions (project-specific, not for repo)
 AGENTS.md
+
+# OpenFOAM validation cases (kept locally, not part of the repo)
+cases/
+*.bak
+
+# Python validation scripts artifacts
+__pycache__/
+source-ofenv.sh

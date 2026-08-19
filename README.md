@@ -1,249 +1,47 @@
 # SGK Mini
 
-## Purpose
+This is a small companion project of SGK — Space Generative Kernel (see the `sgk` repository). Its only job is to check, on a deliberately small case, that the technical stack the SGK pre-design relies on actually stands up, before investing engineering time in the full architecture.
 
-SGK Mini is a minimal, disposable validation slice of the SGK (Space Generative Kernel)
-project. Its goal is to prove that the real technical stack works end-to-end on a
-small, controllable case, before any serious engineering time is invested in the full
-SGK architecture.
+The scope is intentionally narrow: a hollow cylinder, an analytical flow benchmark, and a CFD cross-check. Nothing here pretends to be more than that.
 
-This is NOT a demo. This is NOT the production repository. This is a throwaway proof
-of concept: once the stack is validated, the knowledge gained here gets rewritten
-cleanly into the `sgk` repository. Code quality bar here favors speed and honesty
-over elegance.
+## What is in this repository
 
-## What SGK is (context)
-
-SGK generates 3D propulsion engine geometry from physical equations (Layer 1), predicts
-its physical behavior via neural surrogate models instead of full CFD (Layer 2), and
-optimizes design through generative search (Layer 3), eventually driven by natural
-language (Layer 4).
-
-## Scope of SGK Mini
-
-SGK Mini validates the full pipeline end-to-end, not just Layer 1. Layer 1 comes
-first because every later layer depends on it, but the validation target includes
-the whole chain on a deliberately tiny case:
-
-1. Geometry generation (Layer 1 embryo, PicoGK).
-2. Feature extraction from geometry.
-3. A minimal physical case with analytical ground truth.
-4. A small dataset built from (geometry, physics) pairs.
-5. Training of a tiny surrogate model (Layer 2 embryo).
-6. Inference on a test case.
-7. A minimal optimization loop (Layer 3 embryo).
-8. End-to-end integration check across every layer boundary.
-
-Each step above only starts once the previous one is proven. The exact scope and
-order can be refined as we learn — this list is the current plan, not a rigid
-contract.
-
-## Explicit non-goals
-
-- No realistic engine geometry yet (convergent-divergent nozzle comes after the
-  cylinder embryo is validated).
-- No premature abstractions (no `EngineBase` class hierarchy yet).
-- No Layer 4 (natural language interface) — out of scope for Mini entirely.
+- `src/SGK.Geometry/` — the C# / .NET 9 project (the whole codebase).
+- `SGK-Mini.sln` — solution file.
+- `output/` — generated geometry and JSON records (gitignored).
+- `cases/` — the OpenFOAM case files and validation scripts used for the CFD cross-check. They are kept locally, outside the repository; the numbers they produced are listed below.
 
 ## Environment
 
 - Fedora 44 (native development environment).
 - .NET 9 SDK.
-- PicoGK 26.2.0 native runtime, built from source on this machine
-  (leap71/PicoGKRuntime has no official Linux binaries — only macOS/Windows).
-  Build details: CMake + GCC 16.1.1, OpenVDB/GLFW/imgui via git submodules,
-  Blosc 1.21.7 built separately from source and installed to `/usr/local`.
-  Native `picogk.so` is copied (with symlinks matching the `picogk.26.2`
-  naming expected by the .NET P/Invoke layer) into
-  `src/SGK.Geometry/bin/Debug/net9.0/`. This artifact is machine-specific
-  and NOT versioned in this repo (see `.gitignore`) — it must be rebuilt on
-  any new clone/machine following the build notes archived in the SGK vault.
+- PicoGK 2.2.0 (NuGet package). PicoGK's native runtime has no official Linux binary; it was built from source on this machine (CMake + GCC, OpenVDB/GLFW/imgui via git submodules, Blosc built separately) and the resulting `picogk.so` is copied into the build output with the symlink naming the P/Invoke layer expects. This artifact is machine-specific and not versioned — it must be rebuilt on any new machine.
 
-## Working principles (antirez style)
+## Build and run
 
-- Simplicity first: the simplest solution that answers the current validation
-  question wins.
-- One task at a time: each session in this repo closes one small, verifiable step.
-- Validation before expansion: no new layer/feature until the current one is proven.
-- Code as documentation: clear names, no enterprise patterns, minimal comments with
-  actual purpose.
-
-## Relationship to the main SGK repository
-
-This repo does not get merged into `sgk` via Git history. When validation is
-complete, working knowledge (what worked, what didn't, what the real integration
-constraints are) gets distilled into clean code inside `sgk`. This repo remains
-archived as a historical reference, clearly marked as validation-only.
-
-## Repository structure (current, minimal)
-
-```text
-sgk-mini/
-├── README.md
-├── .gitignore
-├── AGENTS.md
-├── output/
-│   ├── hollow-cylinder.vdb
-│   ├── hollow-cylinder.features.json
-│   ├── hollow-cylinder.physical-case.json
-│   └── hollow-cylinder-widegap.physical-case.json
-├── cases/
-│   ├── annulus/             (baseline, 25+25 cells, gR1=5)
-│   ├── annulus_refined/     (recommended, 50+50 cells, gR1=1.5, cyclic)
-│   └── annulus_widegap/     (sensitivity test, Ro=30mm)
-└── src/
-    └── SGK.Geometry/
-        ├── Program.cs
-        └── SGK.Geometry.csproj
+```bash
+dotnet run --project src/SGK.Geometry/
 ```
 
-This structure is intentionally minimal. It will grow only as validation goals are
-checked off — not in anticipation of future needs.
+Requires the .NET SDK and the PicoGK native runtime as described above.
 
----
+## What has been validated
 
-## Current status
+- PicoGK voxel geometry generation and round-trip serialization to `.vdb` on Fedora 44 / .NET 9, with the native runtime built from source.
+- A minimal hollow-cylinder geometry (OD 20 mm, ID 16 mm, length 50 mm), with feature extraction and JSON round-tripping through two independent code paths (schema identity plus minimal numeric sanity checks).
+- An analytical physics benchmark: steady, fully developed laminar axial water flow in a concentric annulus, with both global targets (mean velocity, Reynolds number, pressure gradient and drop) and local targets (velocity profile, maximum velocity, wall shear stress on both walls).
+- OpenFOAM `simpleFoam` validated against that analytical benchmark on two geometric configurations:
+  - narrow gap (Ri = 8 mm, Ro = 10 mm, Re ≈ 35);
+  - wide gap (Ro = 30 mm, Re ≈ 17), as a sensitivity test.
+  - Recommended mesh: cyclic periodic boundary conditions with `meanVelocityForce`, 80 × 100 × 3 cells, radial grading 1.5.
+  - Results: peak velocity (Umax) error 0.023%, pressure-gradient error 0.74%, flow-rate error 0.86%, mean near-wall profile error 3.6% — as far as I can tell, the near-wall error is systematic and inherent to second-order finite-volume discretization at this aspect ratio, not an implementation defect.
 
-**Last updated:** 2026-07-30
+## What is missing
 
-### Validation checklist
+- a small (geometry, CFD field) dataset;
+- training of a first tiny PhysicsNeMo surrogate and testing its inference accuracy and speed against the analytical/CFD ground truth;
+- a minimal Layer 3 optimization loop.
 
-- [x] Repo builds and runs from a clean clone (native PicoKG runtime built
-  separately, not versioned — see Environment section).
-- [x] C# + PicoGK integration works (voxel geometry generated, viewer
-  rendered and interactively orbitable).
-- [x] Minimal hollow-cylinder geometry generated (OD 20 mm, ID 16 mm, length 50 mm).
-- [x] Geometry serialized to `.vdb`, reloaded, and validated by voxel equality.
-- [x] Minimal feature extraction from geometry.
-- [x] Feature record written to JSON and reloaded through a second code path.
-- [x] Minimal physical case implemented as steady fully developed laminar
-  axial flow in a concentric annulus.
-- [x] Physical record written to JSON and reloaded through a second code path.
-- [x] Analytical global targets saved: mean velocity, Reynolds number,
-  pressure gradient, pressure drop.
-- [x] Analytical local targets saved: sampled axial velocity profile,
-  maximum velocity, inner-wall shear stress, outer-wall shear stress.
-- [x] **OpenFOAM CFD validation**: simpleFoam reproduces the analytical
-  solution for both narrow gap (Ri=8mm, Ro=10mm) and widegap (Ro=30mm).
-  Metrics: Umax error 0.023%, dpL error 0.74%, flow rate error 0.86%.
-- [ ] Minimal dataset built.
-- [ ] Tiny surrogate model trained.
-- [ ] Inference tested.
-- [ ] Minimal optimization loop.
-- [ ] Full end-to-end integration check.
+## How this feeds SGK
 
-### Progress log
-
-- [x] Repo created on GitHub (private), cloned locally to `~/work/sgk-mini/`.
-- [x] PicoGK verified buildable on Fedora 44 / .NET 9 (outside this repo).
-- [x] `.gitignore` and `README.md` bootstrapped.
-- [x] First PicoGK project scaffolded (`src/SGK.Geometry`).
-- [x] First voxel shape (hollow cylinder) generated and inspected in PicoGK
-  viewer — native runtime built from source on Fedora 44, validated across
-  6 executions (interactive + agent-invoked, including abrupt SIGINT
-  termination). One intermittent crash during initial build session was
-  root-caused via coredump analysis to a Mesa/Intel ARL driver race
-  condition (`libgallium-26.1.5.so`), external to this codebase and not
-  actionable here.
-- [x] Hollow-cylinder voxel geometry serialized to `.vdb`, reloaded, and
-  validated by voxel equality, identical volume, and identical bounding box.
-- [x] Minimal feature record extracted from post-reload geometry, written to
-  `output/hollow-cylinder.features.json`, reloaded through a second code path,
-  and validated for schema identity plus minimal numeric sanity.
-- [x] Minimal physical record extracted from the validated feature record and
-  written to `output/hollow-cylinder.physical-case.json`.
-- [x] Physical record reloaded through a second code path and validated for
-  schema identity, geometric sanity, laminar-regime sanity, and positive
-  pressure-drop results.
-- [x] Analytical annulus benchmark extended with local validation targets:
-  sampled axial velocity profile, maximum velocity location, and wall shear
-  stress on both inner and outer walls.
-- [x] **OpenFOAM simpleFoam validated for annulus flow**:
-  - narrow gap (Ri=8mm, Ro=10mm, Re=35): 3 OpenFOAM cases tested
-    (inlet/outlet with gR 5 and gR 2, cyclic periodic with gR 1.5).
-  - widegap (Ro=30mm, Re=17): sensitivity test confirming solver correctness.
-  - Recommended config: cyclic periodic BCs with `meanVelocityForce`,
-    80×100×3 cells, radial grading gR1=1.5.
-  - Metrics: mean profile error 3.60% (near-wall dominant), Umax error 0.023%,
-    dpL error 0.74%, flow rate error 0.86%.
-  - Key insight: profile error is systematic at walls and inherent to second-order
-    FVM at this aspect ratio — not improvable by mesh refinement alone.
-  - Validation scripts and plots saved in `cases/`.
-  - Fixed bug in widegap benchmark generator (wrong sign in formula).
-
-### Current task boundaries
-
-The repository now spans two complete validation checkpoints:
-
-**Checkpoint 1 (geometry → physics record).** Validate the full geometry-to-physics mini-slice:
-
-1. Generate hollow-cylinder voxel geometry.
-2. Save geometry to `.vdb`.
-3. Reload geometry from `.vdb`.
-4. Extract minimal numeric features from the reloaded geometry.
-5. Save the feature record to JSON.
-6. Read the feature JSON back through a second code path.
-7. Compute an analytical physical benchmark from the validated feature record.
-8. Save the physical record to JSON.
-9. Read the physical JSON back through a second code path.
-10. Validate schema identity and minimal physical sanity.
-11. Save analytical local targets for future CFD comparison.
-
-**Checkpoint 2 (CFD validation).** Validate OpenFOAM simpleFoam against the analytical benchmark:
-
-1. Build structured mesh (80 cells axial, 100 cells radial, 3 angular).
-2. Run simpleFoam with cyclic periodic BCs (meanVelocityForce in fvOptions).
-3. Compare velocity profile against analytical annular Poiseuille solution.
-4. Validate Umax (0.02% error), dpL (0.74%), flow rate (0.86%).
-5. Document the systematic near-wall error (3.6% mean, 7.2% max) as inherent to FVM.
-6. Sensitivity test: widegap case (Ro=30mm) confirms solver correctness.
-
-This remains intentionally narrow. It still does not touch OpenFOAM execution,
-PhysicsNeMo, FEM, or CEA.
-
-### Physical case used now
-
-The current physical benchmark is:
-
-- Steady flow.
-- Incompressible Newtonian fluid.
-- Fully developed axial laminar flow.
-- Concentric annular passage.
-- Constant cross-section.
-- No-slip walls.
-- Entry and exit effects neglected.
-
-The hollow-cylinder voxel geometry is interpreted as the solid wall of the flow
-passage. The fluid domain is the concentric annular gap implied by the geometry,
-not the solid voxel object itself.
-
-### Why this case
-
-This case is small, analytical, and honest. It consumes the feature record already
-validated by the geometry pipeline and produces both global and local quantities
-that are useful for future solver validation.
-
-That makes it a good SGK-mini checkpoint: small code, explicit assumptions,
-numerical output that can be saved, and a direct future path toward OpenFOAM
-comparison.
-
-### Next planned step
-
-With the analytical benchmark validated and the CFD pipeline confirmed, the
-next step moves from Layer 1 validation toward Layer 2:
-
-- Build a small dataset of (geometry, CFD profile) pairs by varying annulus
-  dimensions (Ri, Ro) and flow rates.
-- Train a tiny PhysicsNeMo surrogate model to predict velocity profiles from
-  geometry parameters.
-- Validate the surrogate against the analytical solution for unseen parameters.
-- Test inference speed relative to direct CFD.
-- Begin the minimal optimization loop (Layer 3 embryo) once the surrogate is
-  reliable.
-
-The C# analytical benchmark (`Program.cs`), OpenFOAM case files (`cases/`),
-and all validation scripts remain as the ground truth for all future surrogate
-training and optimization.
-
-Native runtime build details remain archived separately in the SGK vault for
-reproducibility on future machines/clones.
+The SGK pre-design describes four layers; only an embryo of Layer 1 exists, and it is here. If this validation slice holds, SGK proper starts from a small but complete problem — a liquid engine in blowdown mode, for example — and grows family by family. This repository stays as a validation record; what is learned here gets rewritten cleanly into `sgk`.
