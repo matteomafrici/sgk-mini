@@ -75,7 +75,7 @@ Everything generated lands in `output/`, which is gitignored:
 |---|---|
 | `hollow-cylinder.vdb` | voxel field, saved and reloaded for the round-trip check |
 | `hollow-cylinder.features.json` | schema and case identifiers, volume, bounding box |
-| `hollow-cylinder.physical-case.json` | reconstructed radii, fluid properties, mean velocity, Reynolds number, pressure gradient and drop, 17 velocity samples, wall shear stresses |
+| `hollow-cylinder.physical-case.json` | reconstructed radii, fluid properties, mean velocity, Reynolds number, pressure gradient and drop, 17 velocity samples, continuous and sampled peak velocity, wall shear stresses |
 
 ## Environment
 
@@ -137,8 +137,8 @@ dotnet run --project src/SGK.Geometry/ -- --auto-exit
   - wide gap (Ro = 30 mm, Re ≈ 17), as a sensitivity test.
   - Recommended mesh: cyclic periodic boundary conditions with
     `meanVelocityForce`, 80 × 100 × 3 cells, radial grading 1.5.
-  - Results: peak velocity (Umax) error 0.023%, pressure-gradient error 0.74%,
-    flow-rate error 0.79%, mean near-wall profile error 3.7% — as far as I can
+  - Results: peak velocity (Umax) error 0.011%, pressure-gradient error 0.74%,
+    flow-rate error 0.79%, mean near-wall profile error 3.65% — as far as I can
     tell, the near-wall error is systematic and inherent to second-order
     finite-volume discretization at this aspect ratio, not an implementation
     defect.
@@ -146,25 +146,35 @@ dotnet run --project src/SGK.Geometry/ -- --auto-exit
   `validation/openfoam/annulus_cyclic/`, and `scripts/check_analytic.py`
   regenerates and checks the analytical records against committed expectations.
 
+## What was corrected on 2026-11-17
+
+Three defects previously listed here are closed, and the physical record schema
+moved to `sgk-mini.physical-record.v2` to mark the change:
+
+- **Domain wording.** `GeometryInterpretation` no longer calls the voxel body
+  "the solid wall of the annular flow passage". It now states what the code
+  actually does: the voxel body is the wall material between the inner and outer
+  radius, its volume and bounding box are used only to recover those radii, and
+  the fluid domain is the annular space between them. No fluid region is
+  extracted from the geometry.
+- **Peak velocity.** `MaxVelocityMPerS` is now the continuous analytical maximum,
+  evaluated where `du/dr = 0`, instead of the largest of the 17 profile samples.
+  The sampled value is still recorded, as `SampledMaxVelocityMPerS` and
+  `SampledMaxVelocityRadiusMm`, and the record validator asserts that it cannot
+  exceed the continuous maximum. This moved the peak-velocity error against CFD
+  from 0.023 % to 0.011 %.
+- **Exit status.** A failure now exits non-zero. Exceptions raised inside the
+  PicoGK task thread are captured there, since an exception escaping that thread
+  is not guaranteed to reach the outer handler. Verified on two paths: a geometry
+  smaller than one voxel (`Invalid volume: 0`) and an invalid `--config`.
+
 ## What remains open
 
-Three defects in the current implementation are known and not yet corrected.
-They do not affect the CFD comparison numbers above, but they limit what the
-program itself can claim.
-
-- **Domain wording in the physical record.** `GeometryInterpretation` describes
-  the hollow-cylinder voxel body as "the solid wall of a concentric annular flow
-  passage", while the analytical model uses the annular ring itself as the fluid
-  domain. The text needs correcting and the reconstructed radii need checking
-  against the nominal inputs.
-- **Sampled peak velocity.** `MaxVelocityMPerS` is the largest of the 17 sampled
-  radial velocities, not the continuous analytical maximum. Peak-velocity error
-  should be computed against the continuous maximum, or CFD and reference
-  should be compared at matched sample locations.
-- **Exit status.** Exceptions are printed but do not set a non-zero exit code,
-  so exit code 0 alone does not prove the checks passed.
-  `scripts/check_analytic.py` closes this gap by comparing the produced records
-  against `validation/expected/`.
+- The reconstructed radii differ from the nominal ones by a few micrometres
+  (Ri = 8.0030 mm, Ro = 9.9978 mm against 8 and 10 mm) because the annulus is
+  rebuilt from voxel volume and bounding box. This is stated rather than fixed;
+  correcting it means extracting the fluid region from the voxel field, which is
+  the geometry-to-physics coupling still missing below.
 
 ## What is missing
 

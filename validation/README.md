@@ -45,17 +45,22 @@ dotnet run --project src/SGK.Geometry/ -- --auto-exit   # benchmark first
 solution. It reads the pressure gradient from the solver log (no magic
 numbers) and the benchmark from `output/hollow-cylinder.physical-case.json`.
 
-### Reference result (Omarchy, 2026-09-29)
+### Reference result (Omarchy, 2026-11-17)
 
 80×100×3 cells, cyclic periodic, 2000 iterations (~86 s serial):
 
 | Metric | Value |
 |---|---|
-| mean \|err\| / Umax | 3.66 % |
+| mean \|err\| / Umax | 3.65 % |
 | max \|err\| / Umax | 7.17 % |
-| Umax error | 0.023 % |
+| Umax error | 0.011 % |
 | pressure-gradient error | 0.74 % |
 | flow-rate error | 0.79 % |
+
+The peak velocity is compared against the continuous analytical maximum
+(evaluated where `du/dr = 0`), not against the largest of the 17 profile
+samples. The sampled peak understates the true peak by about 0.03 % and is kept
+in the record as `SampledMaxVelocityMPerS` for traceability.
 
 The near-wall bias is systematic and inherent to second-order finite-volume
 discretization at this aspect ratio (~35–55), not an implementation defect.

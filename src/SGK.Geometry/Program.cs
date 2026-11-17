@@ -5,17 +5,39 @@ using System.Numerics;
 using System.IO;
 using System.Text.Json;
 
-HollowCylinderConfig oConfig = HollowCylinderConfig.FromArgs(args);
-bool bAutoExit = args.Contains("--auto-exit", StringComparer.Ordinal);
+int nExitCode = 0;
 
 try
 {
-    Library.Go(0.3f, () => HollowCylinderTask.Run(oConfig), bEndAppWithTask: bAutoExit);
+    HollowCylinderConfig oConfig = HollowCylinderConfig.FromArgs(args);
+    bool bAutoExit = args.Contains("--auto-exit", StringComparer.Ordinal);
+
+    Library.Go(
+        0.3f,
+        () =>
+        {
+            // The task runs on a PicoGK thread. An exception escaping it is not
+            // guaranteed to reach the catch block below, so it is captured here
+            // and turned into a non-zero exit code explicitly.
+            try
+            {
+                HollowCylinderTask.Run(oConfig);
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine(e.ToString());
+                nExitCode = 1;
+            }
+        },
+        bEndAppWithTask: bAutoExit);
 }
 catch (Exception e)
 {
     Console.WriteLine(e.ToString());
+    nExitCode = 1;
 }
+
+return nExitCode;
 
 class HollowCylinderConfig
 {
@@ -193,7 +215,10 @@ class HollowCylinderTask
 
         Library.oViewer().Add(loadedVoxels);
 
-        Console.WriteLine("Hollow cylinder generated: OD 20mm, ID 16mm, length 50mm");
+        Console.WriteLine("Hollow cylinder generated: "
+            + $"OD {2.0 * reloadedPhysicalRecord.OuterRadiusMm:F3} mm, "
+            + $"ID {2.0 * reloadedPhysicalRecord.InnerRadiusMm:F3} mm, "
+            + $"length {reloadedPhysicalRecord.LengthMm:F3} mm (reconstructed from the voxel field)");
         Console.WriteLine("Serialization round-trip validated successfully");
         Console.WriteLine("Feature extraction record written successfully");
         Console.WriteLine("Feature extraction record read successfully");
@@ -302,15 +327,33 @@ class HollowCylinderTask
                 muPaS,
                 velocityProfileSampleCount);
 
-        double maxVelocityMPerS = double.MinValue;
-        double maxVelocityRadiusMm = 0.0;
+        // The peak of the analytical profile is continuous, so it is evaluated
+        // where du/dr = 0 rather than read off the sampled profile. Sampling the
+        // 17 points can only understate the true peak.
+        double maxVelocityRadiusM = Math.Sqrt(
+            (outerRadiusM * outerRadiusM - innerRadiusM * innerRadiusM) /
+            (2.0 * Math.Log(outerRadiusM / innerRadiusM)));
+
+        double maxVelocityMPerS = ComputeAxialVelocityMPerS(
+            maxVelocityRadiusM,
+            innerRadiusM,
+            outerRadiusM,
+            dpDz,
+            muPaS);
+
+        double maxVelocityRadiusMm = maxVelocityRadiusM * 1.0e3;
+
+        // Kept separately for traceability: this is what the sampled profile shows,
+        // and what a mesh-node comparison would see.
+        double sampledMaxVelocityMPerS = double.MinValue;
+        double sampledMaxVelocityRadiusMm = 0.0;
 
         foreach (VelocityProfileSample sample in velocityProfileSamples)
         {
-            if (sample.AxialVelocityMPerS > maxVelocityMPerS)
+            if (sample.AxialVelocityMPerS > sampledMaxVelocityMPerS)
             {
-                maxVelocityMPerS = sample.AxialVelocityMPerS;
-                maxVelocityRadiusMm = sample.RadiusMm;
+                sampledMaxVelocityMPerS = sample.AxialVelocityMPerS;
+                sampledMaxVelocityRadiusMm = sample.RadiusMm;
             }
         }
 
@@ -322,12 +365,15 @@ class HollowCylinderTask
 
         return new HollowCylinderPhysicalRecord
         {
-            SchemaVersion = "sgk-mini.physical-record.v1",
+            SchemaVersion = "sgk-mini.physical-record.v2",
             CaseId = featureRecord.CaseId,
             SourceFeaturePath = Path.Combine("output", "hollow-cylinder.features.json"),
             PhysicalCase = "steady-fully-developed-laminar-axial-flow-in-concentric-annulus",
             GeometryInterpretation =
-                "The hollow-cylinder voxel geometry is treated as the solid wall of a concentric annular flow passage.",
+                "The hollow-cylinder voxel body is the solid wall material between the inner " +
+                "and outer radius; its volume and bounding box are used only to recover those " +
+                "radii. The fluid domain is the concentric annular space bounded by them, not " +
+                "the voxel solid, and no separate fluid region is extracted from the geometry.",
             FluidName = "water-like-reference",
             DensityKgPerM3 = rhoKgPerM3,
             DynamicViscosityPaS = muPaS,
@@ -355,6 +401,8 @@ class HollowCylinderTask
             PressureDropPa = pressureDropPa,
             MaxVelocityMPerS = maxVelocityMPerS,
             MaxVelocityRadiusMm = maxVelocityRadiusMm,
+            SampledMaxVelocityMPerS = sampledMaxVelocityMPerS,
+            SampledMaxVelocityRadiusMm = sampledMaxVelocityRadiusMm,
             InnerWallShearStressPa = innerWallShearStressPa,
             OuterWallShearStressPa = outerWallShearStressPa,
             VelocityProfileSamples = velocityProfileSamples
@@ -446,7 +494,7 @@ class HollowCylinderTask
             throw new Exception("Physical record deserialization returned null");
         }
 
-        if (record.SchemaVersion != "sgk-mini.physical-record.v1")
+        if (record.SchemaVersion != "sgk-mini.physical-record.v2")
         {
             throw new Exception($"Unexpected physical schema version: {record.SchemaVersion}");
         }
@@ -495,6 +543,27 @@ class HollowCylinderTask
         if (record.MaxVelocityMPerS <= 0)
         {
             throw new Exception($"Invalid max velocity: {record.MaxVelocityMPerS}");
+        }
+
+        if (record.MaxVelocityRadiusMm <= record.InnerRadiusMm ||
+            record.MaxVelocityRadiusMm >= record.OuterRadiusMm)
+        {
+            throw new Exception(
+                $"Peak velocity radius outside the annulus: radius={record.MaxVelocityRadiusMm}, " +
+                $"inner={record.InnerRadiusMm}, outer={record.OuterRadiusMm}");
+        }
+
+        if (record.SampledMaxVelocityMPerS <= 0)
+        {
+            throw new Exception(
+                $"Invalid sampled max velocity: {record.SampledMaxVelocityMPerS}");
+        }
+
+        if (record.SampledMaxVelocityMPerS > record.MaxVelocityMPerS)
+        {
+            throw new Exception(
+                "Sampled peak velocity exceeds the continuous analytical peak: " +
+                $"{record.SampledMaxVelocityMPerS} > {record.MaxVelocityMPerS}");
         }
 
         if (record.VelocityProfileSamples is null || record.VelocityProfileSamples.Length != 17)
@@ -553,6 +622,8 @@ class HollowCylinderPhysicalRecord
     public double PressureDropPa { get; set; }
     public double MaxVelocityMPerS { get; set; }
     public double MaxVelocityRadiusMm { get; set; }
+    public double SampledMaxVelocityMPerS { get; set; }
+    public double SampledMaxVelocityRadiusMm { get; set; }
     public double InnerWallShearStressPa { get; set; }
     public double OuterWallShearStressPa { get; set; }
     public VelocityProfileSample[] VelocityProfileSamples { get; set; } = Array.Empty<VelocityProfileSample>();
