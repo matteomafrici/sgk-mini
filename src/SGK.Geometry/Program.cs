@@ -5,24 +5,93 @@ using System.Numerics;
 using System.IO;
 using System.Text.Json;
 
+HollowCylinderConfig oConfig = HollowCylinderConfig.FromArgs(args);
+bool bAutoExit = args.Contains("--auto-exit", StringComparer.Ordinal);
+
 try
 {
-    Library.Go(0.3f, HollowCylinderTask.Run);
+    Library.Go(0.3f, () => HollowCylinderTask.Run(oConfig), bEndAppWithTask: bAutoExit);
 }
 catch (Exception e)
 {
     Console.WriteLine(e.ToString());
 }
 
+class HollowCylinderConfig
+{
+    public double OuterRadiusMm { get; set; } = 10.0;
+    public double InnerRadiusMm { get; set; } = 8.0;
+    public double LengthMm { get; set; } = 50.0;
+
+    public static HollowCylinderConfig FromArgs(string[] args)
+    {
+        int nIndex = Array.IndexOf(args, "--config");
+
+        if (nIndex < 0)
+        {
+            return new HollowCylinderConfig();
+        }
+
+        if (nIndex + 1 >= args.Length)
+        {
+            throw new Exception("--config requires a JSON file path");
+        }
+
+        string strPath = args[nIndex + 1];
+        string strJson = File.ReadAllText(strPath);
+
+        HollowCylinderConfig? oConfig = JsonSerializer.Deserialize<HollowCylinderConfig>(
+            strJson,
+            new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+
+        if (oConfig is null)
+        {
+            throw new Exception($"Config deserialization returned null: {strPath}");
+        }
+
+        oConfig.Validate();
+
+        return oConfig;
+    }
+
+    public void Validate()
+    {
+        if (OuterRadiusMm <= 0.0)
+        {
+            throw new Exception($"Invalid outer radius: {OuterRadiusMm}");
+        }
+
+        if (InnerRadiusMm <= 0.0)
+        {
+            throw new Exception($"Invalid inner radius: {InnerRadiusMm}");
+        }
+
+        if (InnerRadiusMm >= OuterRadiusMm)
+        {
+            throw new Exception(
+                $"Inner radius must be smaller than outer radius: inner={InnerRadiusMm}, outer={OuterRadiusMm}");
+        }
+
+        if (LengthMm <= 0.0)
+        {
+            throw new Exception($"Invalid length: {LengthMm}");
+        }
+    }
+}
+
 class HollowCylinderTask
 {
-    public static void Run()
+    public static void Run(HollowCylinderConfig config)
     {
+        float fLengthMm = (float)config.LengthMm;
+        float fOuterRadiusMm = (float)config.OuterRadiusMm;
+        float fInnerRadiusMm = (float)config.InnerRadiusMm;
+
         Lattice latOutside = new();
         latOutside.AddBeam(
             new Vector3(0, 0, 0),
-            new Vector3(0, 0, 50),
-            10, 10,
+            new Vector3(0, 0, fLengthMm),
+            fOuterRadiusMm, fOuterRadiusMm,
             false);
 
         Voxels voxOutside = new(latOutside);
@@ -30,16 +99,15 @@ class HollowCylinderTask
         Lattice latInside = new();
         latInside.AddBeam(
             new Vector3(0, 0, 0),
-            new Vector3(0, 0, 50),
-            8, 8,
+            new Vector3(0, 0, fLengthMm),
+            fInnerRadiusMm, fInnerRadiusMm,
             false);
 
         Voxels voxInside = new(latInside);
 
         voxOutside.BoolSubtract(voxInside);
 
-        string outputDir = Path.Combine(Directory.GetCurrentDirectory(), "..", "..", "output");
-        outputDir = Path.GetFullPath(outputDir);
+        string outputDir = Path.Combine(FindRepositoryRoot(), "output");
         Directory.CreateDirectory(outputDir);
 
         string vdbFileName = "hollow-cylinder.vdb";
@@ -131,6 +199,24 @@ class HollowCylinderTask
         Console.WriteLine("Feature extraction record read successfully");
         Console.WriteLine("Analytic annulus-flow benchmark written successfully");
         Console.WriteLine("Analytic annulus-flow benchmark read successfully");
+    }
+
+    private static string FindRepositoryRoot()
+    {
+        DirectoryInfo? oDir = new DirectoryInfo(AppContext.BaseDirectory);
+
+        while (oDir is not null)
+        {
+            if (File.Exists(Path.Combine(oDir.FullName, "SGK-Mini.sln")))
+            {
+                return oDir.FullName;
+            }
+
+            oDir = oDir.Parent;
+        }
+
+        throw new Exception(
+            "Could not locate the repository root (SGK-Mini.sln not found above the assembly).");
     }
 
     private static HollowCylinderFeatureRecord ReadAndValidateFeatureRecord(string featurePath)
