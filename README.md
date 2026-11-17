@@ -189,6 +189,73 @@ moved to `sgk-mini.physical-record.v2` to mark the change:
   measured against the analytical and CFD ground truth.
 - A minimal Layer 3 optimization loop.
 
+## Planned: dataset and surrogate validation
+
+Everything below is **planned, not implemented**. It exists here so the target is
+written down before the work starts, and so the acceptance criteria cannot be
+chosen after seeing the results.
+
+### What is being validated
+
+Seven boundaries, each with a test that can fail. A boundary that is not tested
+is a claim, not a capability.
+
+| # | Boundary | Acceptance criterion |
+|---|---|---|
+| 1 | voxel geometry → CFD mesh | the mesh reproduces the voxel volume and radii within a declared tolerance, and the difference is explained by snapping and grading; a full CFD case runs from the geometry alone |
+| 2 | CFD → dataset | every run stores residuals, iterations, mass balance and the analytical cross-check; failed runs are kept but never used as labels |
+| 3 | geometry → model input | one converter for training and inference; the distance-field round trip is verified; normalization is saved with the model |
+| 4 | model → physics | errors on engineering quantities and on the field, on geometries held out of training, reported alongside the loss |
+| 5 | model → search | every selected candidate is recomputed with the reference solver; predicted versus reference is reported |
+| 6 | geometry → printable artifact | watertight solid, declared minimum wall and channel respected, voxel resolution sufficient for the features claimed |
+| 7 | results → conclusions | the metrics are read against written criteria, and the irreducible error of the reference (about 3.6% near the wall) is separated from model error |
+
+### Target and baselines
+
+The **field** is the real target: predicting the velocity map over the passage,
+not only the two integrated numbers. Engineering quantities (pressure gradient,
+peak velocity) stay as a minimum score every model must pass, and as a cheap
+reference.
+
+Three models are compared on identical splits, and the comparison has a declared
+purpose:
+
+- a **parameter-only regressor** — not a rival, but a threshold: it tells how
+  much of the error is irreducible on this family of shapes;
+- a **fixed-grid operator** — the cheap operator baseline;
+- a **geometry-aware model** — the candidate, certified rather than ranked.
+
+### Certification of the geometry-aware model
+
+On this case the exact answer is known, so the model is checked, not just scored:
+
+- **accuracy** against the analytical and CFD references;
+- **invariance**: the same case described differently (shifted origin, rotated
+  axis, denser surface sampling) must give the same answer;
+- **mass balance**: the predicted velocity field must integrate to the imposed
+  flow rate;
+- **domain edges**: thin gaps, high eccentricity and out-of-range parameters must
+  degrade predictably, not explode.
+
+Before any of these is trusted, the checks themselves are broken on purpose: an
+injected error must be detected. A check that cannot fail proves nothing.
+
+### Resolution rule
+
+The voxel size is a case parameter, not a constant. A feature is represented
+honestly only at a few voxels across; at 0.3 mm, features below about 0.9 mm are
+not resolvable. The dataset bounds must respect that rule, and the coarse/fine
+resolution split (search versus final verification) follows from it.
+
+### What this stage will not claim
+
+- It will not show that geometry matters. On a full engine that is already given;
+  the annular case cannot demonstrate it.
+- It will not show that a learned model replaces the reference solver. Only that
+  it approximates it within a measured error and a measured cost.
+- It will not judge a design search on speed alone: benefit is measured at
+  comparable design quality.
+
 ## How this feeds SGK
 
 The SGK pre-design describes four layers; only an embryo of Layer 1 exists, and it is here. If this validation slice holds, SGK proper starts from a small but complete problem — a liquid engine in blowdown mode, for example — and grows family by family. This repository stays as a validation record; what is learned here gets rewritten cleanly into `sgk`.
