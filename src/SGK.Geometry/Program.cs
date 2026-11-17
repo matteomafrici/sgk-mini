@@ -13,7 +13,7 @@ try
     bool bAutoExit = args.Contains("--auto-exit", StringComparer.Ordinal);
 
     Library.Go(
-        0.3f,
+        (float)oConfig.VoxelSizeMm,
         () =>
         {
             // The task runs on a PicoGK thread. An exception escaping it is not
@@ -44,6 +44,10 @@ class HollowCylinderConfig
     public double OuterRadiusMm { get; set; } = 10.0;
     public double InnerRadiusMm { get; set; } = 8.0;
     public double LengthMm { get; set; } = 50.0;
+
+    // Voxel size is a declared case parameter: it bounds which features the
+    // geometry can represent, so it belongs in the case record, not in the code.
+    public double VoxelSizeMm { get; set; } = 0.3;
 
     public static HollowCylinderConfig FromArgs(string[] args)
     {
@@ -97,6 +101,12 @@ class HollowCylinderConfig
         if (LengthMm <= 0.0)
         {
             throw new Exception($"Invalid length: {LengthMm}");
+        }
+
+        if (VoxelSizeMm <= 0.0 || VoxelSizeMm > 1.0)
+        {
+            throw new Exception(
+                $"Invalid voxel size: {VoxelSizeMm} mm (expected 0 < voxel <= 1 mm)");
         }
     }
 }

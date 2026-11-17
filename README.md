@@ -41,6 +41,9 @@ part is reconstructed with the solver's own gradient):
   records. See `validation/README.md`.
 - `scripts/check_analytic.py` — one-command analytical check (build, run,
   compare against `validation/expected/`).
+- `scripts/voxel_resolution_curve.py` — measures the geometry stage at several
+  voxel sizes (time, memory, volume convergence) and writes
+  `validation/voxel-resolution-curve.md`.
 - `cases/` — local, exploratory OpenFOAM cases and historical scripts used
   while developing the validation. Kept locally, outside the repository.
 
@@ -100,8 +103,13 @@ Flags:
 - `--auto-exit` — close the PicoGK viewer automatically when the task ends
   (needed for scripts/CI; without it the viewer stays open until closed).
 - `--config <file.json>` — override the geometry, e.g.
-  `{ "OuterRadiusMm": 12.0, "InnerRadiusMm": 9.0, "LengthMm": 40.0 }`.
-  Defaults reproduce the validated 20/16 mm × 50 mm hollow cylinder.
+  `{ "OuterRadiusMm": 12.0, "InnerRadiusMm": 9.0, "LengthMm": 40.0,
+  "VoxelSizeMm": 0.2 }`.
+  Defaults reproduce the validated 20/16 mm × 50 mm hollow cylinder at 0.3 mm
+  voxel. `VoxelSizeMm` is a case parameter because it bounds which features the
+  geometry can represent: a feature needs a few voxels across to be honest, so
+  at 0.3 mm nothing below about 0.9 mm is resolved. See
+  `validation/voxel-resolution-curve.md` for the measured trade-off.
 
 Output always lands in the repository's `output/` directory, regardless of the
 working directory the program is launched from.
