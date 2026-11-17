@@ -31,3 +31,11 @@ cases/
 # Python validation scripts artifacts
 __pycache__/
 source-ofenv.sh
+
+# OpenFOAM validation: versioned dicts only, not generated mesh/results
+validation/openfoam/*/constant/polyMesh/
+validation/openfoam/*/[1-9]*/
+validation/openfoam/*/log.*
+validation/openfoam/*/postProcessing/
+validation/openfoam/*/VTK/
+validation/openfoam/*/*.png

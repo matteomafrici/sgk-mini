@@ -1,0 +1,139 @@
+{
+  "SchemaVersion": "sgk-mini.physical-record.v1",
+  "CaseId": "hollow-cylinder",
+  "SourceFeaturePath": "output/hollow-cylinder.features.json",
+  "PhysicalCase": "steady-fully-developed-laminar-axial-flow-in-concentric-annulus",
+  "GeometryInterpretation": "The hollow-cylinder voxel geometry is treated as the solid wall of a concentric annular flow passage.",
+  "FluidName": "water-like-reference",
+  "DensityKgPerM3": 1000,
+  "DynamicViscosityPaS": 0.001,
+  "VolumetricFlowRateM3PerS": 1E-06,
+  "Assumptions": [
+    "incompressible-fluid",
+    "newtonian-fluid",
+    "steady-flow",
+    "fully-developed-axial-flow",
+    "concentric-annulus",
+    "constant-cross-section",
+    "no-slip-walls",
+    "laminar-regime",
+    "entry-and-exit-effects-neglected"
+  ],
+  "LengthMm": 50,
+  "OuterRadiusMm": 9.997753143310547,
+  "InnerRadiusMm": 8.002998076523836,
+  "CrossSectionAreaMm2": 112.80544921875,
+  "RadiusRatio": 0.8004796639611579,
+  "MeanVelocityMPerS": 0.008864819979226541,
+  "ReynoldsNumber": 35.36628913942842,
+  "PressureGradientPaPerM": 26.71248632995074,
+  "PressureDropPa": 1.335624316497537,
+  "MaxVelocityMPerS": 0.013299957207618816,
+  "MaxVelocityRadiusMm": 9.00037560991719,
+  "InnerWallShearStressPa": 0.027747385244837757,
+  "OuterWallShearStressPa": -0.025757942506533647,
+  "VelocityProfileSamples": [
+    {
+      "SampleIndex": 0,
+      "RadiusMm": 8.002998076523836,
+      "RadiusNormalized": 0,
+      "AxialVelocityMPerS": -0
+    },
+    {
+      "SampleIndex": 1,
+      "RadiusMm": 8.127670268198006,
+      "RadiusNormalized": 0.0625,
+      "AxialVelocityMPerS": 0.0032261263148280306
+    },
+    {
+      "SampleIndex": 2,
+      "RadiusMm": 8.252342459872176,
+      "RadiusNormalized": 0.125,
+      "AxialVelocityMPerS": 0.005991096957393998
+    },
+    {
+      "SampleIndex": 3,
+      "RadiusMm": 8.377014651546345,
+      "RadiusNormalized": 0.1875,
+      "AxialVelocityMPerS": 0.008302516160242702
+    },
+    {
+      "SampleIndex": 4,
+      "RadiusMm": 8.501686843220513,
+      "RadiusNormalized": 0.25,
+      "AxialVelocityMPerS": 0.010167651125174282
+    },
+    {
+      "SampleIndex": 5,
+      "RadiusMm": 8.626359034894685,
+      "RadiusNormalized": 0.3125,
+      "AxialVelocityMPerS": 0.011593451650555283
+    },
+    {
+      "SampleIndex": 6,
+      "RadiusMm": 8.751031226568854,
+      "RadiusNormalized": 0.375,
+      "AxialVelocityMPerS": 0.012586568350338764
+    },
+    {
+      "SampleIndex": 7,
+      "RadiusMm": 8.875703418243022,
+      "RadiusNormalized": 0.4375,
+      "AxialVelocityMPerS": 0.013153369584337627
+    },
+    {
+      "SampleIndex": 8,
+      "RadiusMm": 9.00037560991719,
+      "RadiusNormalized": 0.5,
+      "AxialVelocityMPerS": 0.013299957207618816
+    },
+    {
+      "SampleIndex": 9,
+      "RadiusMm": 9.125047801591363,
+      "RadiusNormalized": 0.5625,
+      "AxialVelocityMPerS": 0.013032181236501057
+    },
+    {
+      "SampleIndex": 10,
+      "RadiusMm": 9.249719993265531,
+      "RadiusNormalized": 0.625,
+      "AxialVelocityMPerS": 0.012355653519373537
+    },
+    {
+      "SampleIndex": 11,
+      "RadiusMm": 9.374392184939701,
+      "RadiusNormalized": 0.6875,
+      "AxialVelocityMPerS": 0.011275760492288147
+    },
+    {
+      "SampleIndex": 12,
+      "RadiusMm": 9.49906437661387,
+      "RadiusNormalized": 0.75,
+      "AxialVelocityMPerS": 0.009797675091881099
+    },
+    {
+      "SampleIndex": 13,
+      "RadiusMm": 9.62373656828804,
+      "RadiusNormalized": 0.8125,
+      "AxialVelocityMPerS": 0.007926367891555567
+    },
+    {
+      "SampleIndex": 14,
+      "RadiusMm": 9.748408759962208,
+      "RadiusNormalized": 0.875,
+      "AxialVelocityMPerS": 0.005666617520919273
+    },
+    {
+      "SampleIndex": 15,
+      "RadiusMm": 9.873080951636378,
+      "RadiusNormalized": 0.9375,
+      "AxialVelocityMPerS": 0.0030230204231294073
+    },
+    {
+      "SampleIndex": 16,
+      "RadiusMm": 9.997753143310547,
+      "RadiusNormalized": 1,
+      "AxialVelocityMPerS": -0
+    }
+  ]
+}

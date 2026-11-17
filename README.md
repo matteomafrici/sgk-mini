@@ -1,109 +1,184 @@
 # SGK Mini
 
-SGK Mini tests the toolchain proposed for [SGK](https://github.com/matteomafrici/sgk): geometry generation, data exchange, reference analysis and eventually learned-model inference. The current example uses a hollow cylinder and an analytical annular-flow calculation.
+This is a small companion project of SGK — Space Generative Kernel (see the `sgk` repository). Its only job is to check, on a deliberately small case, that the technical stack the SGK pre-design relies on actually stands up, before investing engineering time in the full architecture.
 
-## Current pipeline
+The scope is intentionally narrow: a hollow cylinder, an analytical flow benchmark, and a CFD cross-check. Nothing here pretends to be more than that.
 
-```text
-fixed hollow-cylinder parameters
-    -> PicoGK voxel geometry
-    -> VDB save/reload and voxel equality check
-    -> volume and bounding-box extraction
-    -> feature JSON write/read
-    -> equivalent-annulus calculation
-    -> physical-case JSON write/read
-    -> geometry displayed in the PicoGK viewer
-```
+## Results at a glance
 
-The implementation is in [Program.cs](src/SGK.Geometry/Program.cs). Geometry parameters and reference fluid conditions are defined in the source. CFD execution, dataset generation, model training and optimization are pending.
+The validation compares OpenFOAM against the exact annular-Poiseuille
+solution. The figures below are committed in the repository, so you can read
+them without cloning or running anything.
 
-## Test case
+**Values — CFD against analytical** (annulus Ri=8.00 mm, Ro=10.00 mm, Re≈35,
+80×100×3 cells, 2000 iterations):
+
+![validation values](validation/figures/04_metrics_summary.png)
+
+**Radial velocity profile** at three axial stations — the flow is fully
+developed, so the profile is the same everywhere:
+
+![velocity profile](validation/figures/01_velocity_profile.png)
+
+**Axial velocity field** on the meridional plane (CFD, analytical, and their
+difference — the residual is the systematic near-wall finite-volume bias):
+
+![velocity field](validation/figures/02_fields_velocity.png)
+
+**Pressure drop** along the annulus (the raw CFD pressure is periodic because
+the driving gradient lives in the `meanVelocityForce` source term; the linear
+part is reconstructed with the solver's own gradient):
+
+![pressure drop](validation/figures/03_pressure.png)
+
+## What is in this repository
+
+- `src/SGK.Geometry/` — the C# / .NET 9 project (the whole codebase).
+- `SGK-Mini.sln` — solution file.
+- `output/` — generated geometry and JSON records (gitignored).
+- `validation/` — the reproducible validation: the OpenFOAM case (dictionary
+  sources only), `validate_annulus.py`, `run_annulus.sh`, and the expected
+  records. See `validation/README.md`.
+- `scripts/check_analytic.py` — one-command analytical check (build, run,
+  compare against `validation/expected/`).
+- `cases/` — local, exploratory OpenFOAM cases and historical scripts used
+  while developing the validation. Kept locally, outside the repository.
+
+## The test case
 
 | Parameter | Value |
 |---|---|
 | Nominal outer / inner diameter | 20 mm / 16 mm |
 | Nominal length | 50 mm |
 | Voxel size | 0.3 mm |
-| Reference density | 1000 kg/m3 |
-| Dynamic viscosity | 0.001 Pa s |
-| Volumetric flow rate | 1e-6 m3/s |
-| Velocity-profile samples | 17 radial locations, including both walls |
+| Density | 1000 kg/m³ |
+| Dynamic viscosity | 0.001 Pa·s |
+| Volumetric flow rate | 1e-6 m³/s |
+| Velocity profile samples | 17 radial locations, both walls included |
+| Reynolds number | ≈ 35.4 |
 
-**Flow assumptions:** steady, incompressible, Newtonian, laminar, fully developed axial flow in a concentric annulus; no-slip walls; entry and exit effects neglected.
+The flow assumptions are steady, incompressible, Newtonian, laminar, fully
+developed axial flow in a concentric annulus, with no-slip walls and entry and
+exit effects neglected.
 
-The calculation reconstructs an equivalent annulus from the measured voxel volume and bounding box. Its area is volume divided by length; the inner radius follows from that area and the inferred outer radius. Consequently, the radii used by the analytical calculation may differ from the nominal geometry parameters.
-
-The voxel ring defines the annular domain used in this calculation. The code does not extract a separate fluid region from an enclosing solid wall; the current `GeometryInterpretation` string needs to be corrected to match this convention.
-
-## Build and run
-
-| Dependency | Current configuration |
-|---|---|
-| .NET SDK | 9.x (`net9.0`) |
-| PicoGK managed package | 2.2.0, referenced in [SGK.Geometry.csproj](src/SGK.Geometry/SGK.Geometry.csproj) |
-| PicoGK native runtime | Compatible native library installed separately and available to the application |
-| Graphics | Working environment for the PicoGK viewer |
-
-The recorded development setup was Fedora 44, with the native PicoGK runtime built from source. The repository does not yet provide a reproducible native-runtime setup procedure or automate copying that library into the build output.
-
-Once these dependencies are available, run from the repository root:
-
-```bash
-cd src/SGK.Geometry
-dotnet run
-```
-
-This working directory places the generated files in the repository's `output/` directory. Output paths currently resolve two levels above the process working directory.
+The analytical model does not use the nominal radii directly: it reconstructs an
+equivalent annulus from the measured voxel volume and bounding box (area =
+volume / length). The reconstruction is honest but not exact, so the radii it
+works with differ slightly from the nominal ones — Ri = 8.0030 mm and
+Ro = 9.9978 mm in the reference run, against a nominal 8 mm and 10 mm.
 
 ## Outputs
 
-| File in `output/` | Contents |
+Everything generated lands in `output/`, which is gitignored:
+
+| File | Contents |
 |---|---|
-| `hollow-cylinder.vdb` | Generated voxel field, reloaded for comparison |
-| `hollow-cylinder.features.json` | Schema and case identifiers, source path, volume and bounding box |
-| `hollow-cylinder.physical-case.json` | Reconstructed radii, flow assumptions and properties, mean velocity, Reynolds number, pressure gradient/drop, radial velocity samples and wall shear values |
+| `hollow-cylinder.vdb` | voxel field, saved and reloaded for the round-trip check |
+| `hollow-cylinder.features.json` | schema and case identifiers, volume, bounding box |
+| `hollow-cylinder.physical-case.json` | reconstructed radii, fluid properties, mean velocity, Reynolds number, pressure gradient and drop, 17 velocity samples, wall shear stresses |
 
-`MaxVelocityMPerS` and its radius identify the largest of the 17 sampled velocities. Wall shear values use the signed quantity mu du/dr at the two radii. Generated files are excluded from version control.
+## Environment
 
-## Checks
+- Omarchy 4.5 (Arch-based), native development environment.
+- .NET 9 SDK.
+- PicoGK 2.2.0 (NuGet package). PicoGK's native runtime has no official Linux
+  binary; it is built from source (CMake + GCC, OpenVDB/GLFW/imgui via git
+  submodules, system Blosc) and the resulting `picogk.so` is copied into the
+  build output next to the symlink names the P/Invoke layer expects. This
+  artifact is machine-specific and not versioned — it must be rebuilt on any
+  new machine. See the `sgk-mini` notes in the vault for the exact procedure.
+- OpenFOAM v2606 (core) for the CFD cross-check, available via its `etc/bashrc`.
 
-| Check | Current implementation |
-|---|---|
-| Geometry serialization | Saves/reloads the VDB and compares voxel equality; prints volumes and bounding boxes |
-| Feature record | Reads the JSON and checks schema/case identifiers, positive volume and axial extent |
-| Physical record | Checks identifiers, selected geometric/physical ranges, sample count and zero velocity at both walls |
-| Analytical reference | Calculates the fully developed annular-flow solution using reconstructed geometry |
-| CFD comparison | Archived OpenFOAM cases; execution and comparison are outside the current program |
+## Build and run
 
-The JSON checks test data consistency. Independent verification of the analytical calculation and comparison with CFD remain separate steps.
+```bash
+dotnet run --project src/SGK.Geometry/ -- --auto-exit
+```
 
-### OpenFOAM comparison
+Flags:
 
-Earlier work used `simpleFoam` for narrow- and wide-gap annuli. The case files and comparison scripts are available in [commit f02b242](https://github.com/matteomafrici/sgk-mini/tree/f02b242/cases), including a refined periodic case driven by `meanVelocityForce`.
+- `--auto-exit` — close the PicoGK viewer automatically when the task ends
+  (needed for scripts/CI; without it the viewer stays open until closed).
+- `--config <file.json>` — override the geometry, e.g.
+  `{ "OuterRadiusMm": 12.0, "InnerRadiusMm": 9.0, "LengthMm": 40.0 }`.
+  Defaults reproduce the validated 20/16 mm × 50 mm hollow cylinder.
 
-A reproducible benchmark still needs one selected case, portable paths, a documented solver environment and explicit error definitions. Quantitative accuracy claims should be attached to that benchmark and its generated results.
+Output always lands in the repository's `output/` directory, regardless of the
+working directory the program is launched from.
 
-## Known limitations
+## Reproduce the validation
 
-| Item | Consequence / correction needed |
-|---|---|
-| Equivalent-annulus interpretation | The JSON description calls the voxel ring a solid wall; align it with the actual analytical domain and verify reconstructed dimensions against nominal inputs. |
-| Sampled peak velocity | Use the continuous analytical maximum for a peak-error comparison, or compare CFD and reference at matched sample locations. |
-| Working-directory-dependent output path | Use the run commands above. Running with `--project` from the root currently places outputs outside the repository. |
-| Exception handling | Exceptions are printed without setting a failure exit code; exit code zero alone does not confirm successful checks. |
-| Native-runtime setup | Installation is currently environment-dependent and needs a reproducible procedure. |
-| CFD benchmark availability | Restore and rerun the selected archived case before reporting numerical accuracy or attributing the near-wall discrepancy to discretization. |
+```bash
+./scripts/check_analytic.py          # build + run + compare (no OpenFOAM needed)
+./scripts/check_analytic.py --with-cfd   # add the OpenFOAM cross-check
+```
 
-## Next steps
+or, manually:
 
-1. Resolve the domain description, output-path behavior, failure status and analytical peak calculation.
-2. Restore one reproducible OpenFOAM comparison with independent analytical checks and defined error metrics.
-3. Vary a small set of geometric/flow parameters and generate a checked dataset.
-4. Test geometry-to-model conversion and train a first predictor, comparing accuracy and cost with the analytical baseline.
-5. Close a small parameter-search loop with reference checks.
+```bash
+dotnet run --project src/SGK.Geometry/ -- --auto-exit
+./validation/run_annulus.sh --check
+```
 
-The annulus provides a known solution for testing these connections. The computational benefit of the broader SGK approach will need evaluation on a problem with expensive reference analysis.
+## What has been validated
 
-## License
+- PicoGK voxel geometry generation and round-trip serialization to `.vdb` on
+  Linux / .NET 9, with the native runtime built from source.
+- A minimal hollow-cylinder geometry (OD 20 mm, ID 16 mm, length 50 mm), with
+  feature extraction and JSON round-tripping through two independent code paths
+  (schema identity plus minimal numeric sanity checks).
+- An analytical physics benchmark: steady, fully developed laminar axial water
+  flow in a concentric annulus, with both global targets (mean velocity,
+  Reynolds number, pressure gradient and drop) and local targets (velocity
+  profile, maximum velocity, wall shear stress on both walls).
+- OpenFOAM `simpleFoam` validated against that analytical benchmark on two
+  geometric configurations:
+  - narrow gap (Ri = 8 mm, Ro = 10 mm, Re ≈ 35);
+  - wide gap (Ro = 30 mm, Re ≈ 17), as a sensitivity test.
+  - Recommended mesh: cyclic periodic boundary conditions with
+    `meanVelocityForce`, 80 × 100 × 3 cells, radial grading 1.5.
+  - Results: peak velocity (Umax) error 0.023%, pressure-gradient error 0.74%,
+    flow-rate error 0.79%, mean near-wall profile error 3.7% — as far as I can
+    tell, the near-wall error is systematic and inherent to second-order
+    finite-volume discretization at this aspect ratio, not an implementation
+    defect.
+- This validation is reproducible from the repository: the cyclic case lives in
+  `validation/openfoam/annulus_cyclic/`, and `scripts/check_analytic.py`
+  regenerates and checks the analytical records against committed expectations.
 
-Apache 2.0. See [LICENSE](LICENSE).
+## What remains open
+
+Three defects in the current implementation are known and not yet corrected.
+They do not affect the CFD comparison numbers above, but they limit what the
+program itself can claim.
+
+- **Domain wording in the physical record.** `GeometryInterpretation` describes
+  the hollow-cylinder voxel body as "the solid wall of a concentric annular flow
+  passage", while the analytical model uses the annular ring itself as the fluid
+  domain. The text needs correcting and the reconstructed radii need checking
+  against the nominal inputs.
+- **Sampled peak velocity.** `MaxVelocityMPerS` is the largest of the 17 sampled
+  radial velocities, not the continuous analytical maximum. Peak-velocity error
+  should be computed against the continuous maximum, or CFD and reference
+  should be compared at matched sample locations.
+- **Exit status.** Exceptions are printed but do not set a non-zero exit code,
+  so exit code 0 alone does not prove the checks passed.
+  `scripts/check_analytic.py` closes this gap by comparing the produced records
+  against `validation/expected/`.
+
+## What is missing
+
+- The geometry is not yet consumed by the physics: the annular benchmark is
+  reconstructed from scalar features (bbox + volume), not from the voxel field,
+  and the CFD case is a hand-built annulus. The geometry→physics coupling is
+  currently nominal.
+- A dataset generator. The geometry is parameterizable, but nothing yet samples
+  that parameterization into a dataset.
+- A small (geometry, CFD field) dataset.
+- A first tiny surrogate (PhysicsNeMo), with its inference accuracy and speed
+  measured against the analytical and CFD ground truth.
+- A minimal Layer 3 optimization loop.
+
+## How this feeds SGK
+
+The SGK pre-design describes four layers; only an embryo of Layer 1 exists, and it is here. If this validation slice holds, SGK proper starts from a small but complete problem — a liquid engine in blowdown mode, for example — and grows family by family. This repository stays as a validation record; what is learned here gets rewritten cleanly into `sgk`.

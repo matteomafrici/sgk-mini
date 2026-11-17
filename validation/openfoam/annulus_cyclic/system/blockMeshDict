@@ -1,0 +1,146 @@
+/*--------------------------------*- C++ -*----------------------------------*\
+| =========                 |                                                 |
+| \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox           |
+|  \\    /   O peration     | Version:  v2606                                 |
+|   \\  /    A nd           | Website:  www.openfoam.com                      |
+|    \\/     M anipulation  |                                                 |
+\*---------------------------------------------------------------------------*/
+FoamFile
+{
+    version     2.0;
+    format      ascii;
+    class       dictionary;
+    object      blockMeshDict;
+}
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+
+// Option C + refined mesh: 50+50 radial cells, grading 3
+// nR radial cells per block doubled from 25→50
+// gR1=3 concentrates cells at inner wall (d³U/dr³ ∝ 1/r³ larger there)
+// gR2=1/3 concentrates cells at outer wall (specular)
+// Total cells: 80×100×3 = 24000
+
+halfAngle   15;
+Ri          0.008002998;
+Ro          0.009997753;
+L           0.05;
+Rmid        #eval{ ($Ri + $Ro)/2 };
+
+sinHA       #eval{ sin(degToRad($halfAngle)) };
+cosHA       #eval{ cos(degToRad($halfAngle)) };
+
+yi          #eval{ $Ri * $sinHA };
+zi          #eval{ $Ri * $cosHA };
+ym          #eval{ $Rmid * $sinHA };
+zm          #eval{ $Rmid * $cosHA };
+yo          #eval{ $Ro * $sinHA };
+zo          #eval{ $Ro * $cosHA };
+
+nX          80;
+nR1         50;
+nR2         50;
+nAng        3;
+
+gR1         1.5;
+gR2         0.6666666667;
+
+vertices
+(
+    // η=0 (R_i)
+    (0           $yi    $zi)    // 0
+    ($L          $yi    $zi)    // 1
+    ($L         -$yi    $zi)    // 2
+    (0          -$yi    $zi)    // 3
+    // η=1 (R_mid)
+    (0           $ym    $zm)    // 4
+    ($L          $ym    $zm)    // 5
+    ($L         -$ym    $zm)    // 6
+    (0          -$ym    $zm)    // 7
+    // η=2 (R_o)
+    (0           $yo    $zo)    // 8
+    ($L          $yo    $zo)    // 9
+    ($L         -$yo    $zo)    // 10
+    (0          -$yo    $zo)    // 11
+);
+
+edges
+(
+    arc 3 0 (0 0 #eval{$Ri})
+    arc 2 1 ($L 0 #eval{$Ri})
+    arc 7 4 (0 0 #eval{$Rmid})
+    arc 6 5 ($L 0 #eval{$Rmid})
+    arc 11 8 (0 0 #eval{$Ro})
+    arc 10 9 ($L 0 #eval{$Ro})
+);
+
+blocks
+(
+    hex (0 1 5 4 3 2 6 7) ($nX $nR1 $nAng) simpleGrading (1 $gR1 1)
+    hex (4 5 9 8 7 6 10 11) ($nX $nR2 $nAng) simpleGrading (1 $gR2 1)
+);
+
+boundary
+(
+    cyclicLeft
+    {
+        type cyclic;
+        neighbourPatch cyclicRight;
+        faces
+        (
+            (0 4 7 3)
+            (4 8 11 7)
+        );
+    }
+    cyclicRight
+    {
+        type cyclic;
+        neighbourPatch cyclicLeft;
+        faces
+        (
+            (1 5 6 2)
+            (5 9 10 6)
+        );
+    }
+    innerWall
+    {
+        type wall;
+        faces
+        (
+            (0 1 2 3)
+        );
+    }
+    outerWall
+    {
+        type wall;
+        faces
+        (
+            (8 9 10 11)
+        );
+    }
+    cyclicSideFront
+    {
+        type cyclicAMI;
+        neighbourPatch cyclicSideBack;
+        faces
+        (
+            (0 1 5 4)
+            (4 5 9 8)
+        );
+        transform rotational;
+        rotationAxis (1 0 0);
+        rotationCentre (0 0 0);
+    }
+    cyclicSideBack
+    {
+        type cyclicAMI;
+        neighbourPatch cyclicSideFront;
+        faces
+        (
+            (3 2 6 7)
+            (7 6 10 11)
+        );
+        transform rotational;
+        rotationAxis (1 0 0);
+        rotationCentre (0 0 0);
+    }
+);
