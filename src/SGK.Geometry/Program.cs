@@ -4,6 +4,7 @@ using PicoGK;
 using System.Numerics;
 using System.IO;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 
 int nExitCode = 0;
 
@@ -41,6 +42,11 @@ return nExitCode;
 
 class HollowCylinderConfig
 {
+    // Identity of the case. It is written into the records and used for the
+    // output file names, so a dataset can hold many cases without collisions.
+    // The default keeps every existing caller working unchanged.
+    public string CaseId { get; set; } = "hollow-cylinder";
+
     public double OuterRadiusMm { get; set; } = 10.0;
     public double InnerRadiusMm { get; set; } = 8.0;
     public double LengthMm { get; set; } = 50.0;
@@ -50,6 +56,17 @@ class HollowCylinderConfig
     // 0.2 mm is the measured choice: the last resolution where refining still
     // improves the geometry (see validation/voxel-resolution-curve.md).
     public double VoxelSizeMm { get; set; } = 0.2;
+
+    // Fluid and flow are inputs of the physical case, not constants of the
+    // program: the dataset varies them per case. The defaults are the
+    // water-like reference used by the original validation.
+    public double DensityKgPerM3 { get; set; } = 1000.0;
+    public double DynamicViscosityPaS { get; set; } = 1.0e-3;
+    public double VolumetricFlowRateM3PerS { get; set; } = 1.0e-6;
+
+    // Where the generated artifacts go. Empty means <repository>/output, which
+    // is the historical behaviour. A dataset passes an absolute per-case path.
+    public string OutputDirectory { get; set; } = "";
 
     public static HollowCylinderConfig FromArgs(string[] args)
     {
@@ -68,9 +85,17 @@ class HollowCylinderConfig
         string strPath = args[nIndex + 1];
         string strJson = File.ReadAllText(strPath);
 
+        // Unknown properties are rejected instead of silently ignored. A
+        // misspelled "InnerRadiusMm" must fail loudly; otherwise the case runs
+        // with the default geometry and every downstream number is wrong while
+        // looking perfectly valid.
         HollowCylinderConfig? oConfig = JsonSerializer.Deserialize<HollowCylinderConfig>(
             strJson,
-            new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+            new JsonSerializerOptions
+            {
+                PropertyNameCaseInsensitive = true,
+                UnmappedMemberHandling = JsonUnmappedMemberHandling.Disallow
+            });
 
         if (oConfig is null)
         {
@@ -84,6 +109,31 @@ class HollowCylinderConfig
 
     public void Validate()
     {
+        if (string.IsNullOrWhiteSpace(CaseId))
+        {
+            throw new Exception("Case id is empty");
+        }
+
+        foreach (char c in CaseId)
+        {
+            bool bAllowed =
+                char.IsAsciiLetterOrDigit(c) || c == '-' || c == '_' || c == '.';
+
+            if (!bAllowed)
+            {
+                throw new Exception(
+                    $"Case id contains a character that is not safe in a file name: '{c}'");
+            }
+        }
+
+        RequireFinite(OuterRadiusMm, "outer radius");
+        RequireFinite(InnerRadiusMm, "inner radius");
+        RequireFinite(LengthMm, "length");
+        RequireFinite(VoxelSizeMm, "voxel size");
+        RequireFinite(DensityKgPerM3, "density");
+        RequireFinite(DynamicViscosityPaS, "dynamic viscosity");
+        RequireFinite(VolumetricFlowRateM3PerS, "volumetric flow rate");
+
         if (OuterRadiusMm <= 0.0)
         {
             throw new Exception($"Invalid outer radius: {OuterRadiusMm}");
@@ -109,6 +159,47 @@ class HollowCylinderConfig
         {
             throw new Exception(
                 $"Invalid voxel size: {VoxelSizeMm} mm (expected 0 < voxel <= 1 mm)");
+        }
+
+        if (DensityKgPerM3 <= 0.0)
+        {
+            throw new Exception($"Invalid density: {DensityKgPerM3}");
+        }
+
+        if (DynamicViscosityPaS <= 0.0)
+        {
+            throw new Exception($"Invalid dynamic viscosity: {DynamicViscosityPaS}");
+        }
+
+        if (VolumetricFlowRateM3PerS <= 0.0)
+        {
+            throw new Exception($"Invalid volumetric flow rate: {VolumetricFlowRateM3PerS}");
+        }
+
+        // PicoGK works in float millimetres. Refuse dimensions that cannot be
+        // represented with a meaningful number of voxels instead of producing a
+        // truncated or empty body.
+        const double maxVoxelsPerAxis = 100_000.0;
+
+        if (2.0 * OuterRadiusMm / VoxelSizeMm > maxVoxelsPerAxis ||
+            LengthMm / VoxelSizeMm > maxVoxelsPerAxis)
+        {
+            throw new Exception(
+                $"Geometry is not representable at {VoxelSizeMm} mm voxel: " +
+                $"diameter {2.0 * OuterRadiusMm} mm, length {LengthMm} mm");
+        }
+
+        if (2.0 * OuterRadiusMm > float.MaxValue || LengthMm > float.MaxValue)
+        {
+            throw new Exception("Geometry dimensions exceed the float range");
+        }
+    }
+
+    private static void RequireFinite(double value, string name)
+    {
+        if (!double.IsFinite(value))
+        {
+            throw new Exception($"Non-finite {name}: {value}");
         }
     }
 }
@@ -141,11 +232,10 @@ class HollowCylinderTask
 
         voxOutside.BoolSubtract(voxInside);
 
-        string outputDir = Path.Combine(FindRepositoryRoot(), "output");
+        string outputDir = ResolveOutputDirectory(config);
         Directory.CreateDirectory(outputDir);
 
-        string vdbFileName = "hollow-cylinder.vdb";
-        string vdbRepoRelativePath = Path.Combine("output", vdbFileName);
+        string vdbFileName = $"{config.CaseId}.vdb";
         string vdbPath = Path.Combine(outputDir, vdbFileName);
 
         using (OpenVdbFile vdb = new(Library.oLibrary()))
@@ -176,9 +266,10 @@ class HollowCylinderTask
 
         var featureRecord = new HollowCylinderFeatureRecord
         {
-            SchemaVersion = "sgk-mini.feature-record.v1",
-            CaseId = "hollow-cylinder",
-            SourceVdbPath = vdbRepoRelativePath,
+            SchemaVersion = "sgk-mini.feature-record.v2",
+            CaseId = config.CaseId,
+            SourceVdbPath = vdbFileName,
+            VoxelSizeMm = config.VoxelSizeMm,
             VolumeMm3 = loadedVolume,
             BBoxMinXMm = loadedBox.vecMin.X,
             BBoxMinYMm = loadedBox.vecMin.Y,
@@ -188,7 +279,7 @@ class HollowCylinderTask
             BBoxMaxZMm = loadedBox.vecMax.Z
         };
 
-        string featurePath = Path.Combine(outputDir, "hollow-cylinder.features.json");
+        string featurePath = Path.Combine(outputDir, $"{config.CaseId}.features.json");
 
         string featureJson = JsonSerializer.Serialize(
             featureRecord,
@@ -205,9 +296,9 @@ class HollowCylinderTask
         Console.WriteLine("Feature record validation passed");
 
         HollowCylinderPhysicalRecord physicalRecord =
-            ComputeConcentricAnnulusLaminarFlowPhysicalRecord(reloadedFeatureRecord);
+            ComputeConcentricAnnulusLaminarFlowPhysicalRecord(reloadedFeatureRecord, config);
 
-        string physicalPath = Path.Combine(outputDir, "hollow-cylinder.physical-case.json");
+        string physicalPath = Path.Combine(outputDir, $"{config.CaseId}.physical-case.json");
 
         string physicalJson = JsonSerializer.Serialize(
             physicalRecord,
@@ -236,6 +327,16 @@ class HollowCylinderTask
         Console.WriteLine("Feature extraction record read successfully");
         Console.WriteLine("Analytic annulus-flow benchmark written successfully");
         Console.WriteLine("Analytic annulus-flow benchmark read successfully");
+    }
+
+    private static string ResolveOutputDirectory(HollowCylinderConfig config)
+    {
+        if (string.IsNullOrWhiteSpace(config.OutputDirectory))
+        {
+            return Path.Combine(FindRepositoryRoot(), "output");
+        }
+
+        return Path.GetFullPath(config.OutputDirectory);
     }
 
     private static string FindRepositoryRoot()
@@ -268,14 +369,28 @@ class HollowCylinderTask
             throw new Exception("Feature record deserialization returned null");
         }
 
-        if (record.SchemaVersion != "sgk-mini.feature-record.v1")
+        if (record.SchemaVersion != "sgk-mini.feature-record.v2")
         {
             throw new Exception($"Unexpected schema version: {record.SchemaVersion}");
         }
 
-        if (record.CaseId != "hollow-cylinder")
+        if (string.IsNullOrWhiteSpace(record.CaseId))
         {
-            throw new Exception($"Unexpected case id: {record.CaseId}");
+            throw new Exception("Feature record case id is empty");
+        }
+
+        RequireFinite(record.VoxelSizeMm, "feature voxel size");
+        RequireFinite(record.VolumeMm3, "feature volume");
+        RequireFinite(record.BBoxMinXMm, "feature bbox min X");
+        RequireFinite(record.BBoxMinYMm, "feature bbox min Y");
+        RequireFinite(record.BBoxMinZMm, "feature bbox min Z");
+        RequireFinite(record.BBoxMaxXMm, "feature bbox max X");
+        RequireFinite(record.BBoxMaxYMm, "feature bbox max Y");
+        RequireFinite(record.BBoxMaxZMm, "feature bbox max Z");
+
+        if (record.VoxelSizeMm <= 0.0)
+        {
+            throw new Exception($"Invalid feature voxel size: {record.VoxelSizeMm}");
         }
 
         if (record.VolumeMm3 <= 0)
@@ -283,31 +398,70 @@ class HollowCylinderTask
             throw new Exception($"Invalid volume: {record.VolumeMm3}");
         }
 
-        if (record.BBoxMaxZMm <= record.BBoxMinZMm)
+        double spanXMm = record.BBoxMaxXMm - record.BBoxMinXMm;
+        double spanYMm = record.BBoxMaxYMm - record.BBoxMinYMm;
+        double spanZMm = record.BBoxMaxZMm - record.BBoxMinZMm;
+
+        if (spanXMm <= 0 || spanYMm <= 0 || spanZMm <= 0)
         {
             throw new Exception(
-                $"Invalid bbox Z range: min={record.BBoxMinZMm}, max={record.BBoxMaxZMm}");
+                $"Invalid bbox spans: X={spanXMm}, Y={spanYMm}, Z={spanZMm}");
+        }
+
+        // The body is a concentric cylinder, so its transverse extents must
+        // describe a circle. Two voxels of slack cover the discretisation of the
+        // bounding box. A truncated or clipped body fails here instead of
+        // producing a plausible-looking but wrong radius.
+        double transverseTolerance = 2.0 * record.VoxelSizeMm;
+
+        if (Math.Abs(spanXMm - spanYMm) > transverseTolerance)
+        {
+            throw new Exception(
+                $"Transverse extents differ: X={spanXMm}, Y={spanYMm} mm " +
+                $"(tolerance {transverseTolerance} mm)");
+        }
+
+        double halfSpanXMm = 0.5 * spanXMm;
+        double halfSpanYMm = 0.5 * spanYMm;
+
+        if (Math.Abs(Math.Abs(record.BBoxMinXMm) - halfSpanXMm) > transverseTolerance ||
+            Math.Abs(Math.Abs(record.BBoxMaxXMm) - halfSpanXMm) > transverseTolerance ||
+            Math.Abs(Math.Abs(record.BBoxMinYMm) - halfSpanYMm) > transverseTolerance ||
+            Math.Abs(Math.Abs(record.BBoxMaxYMm) - halfSpanYMm) > transverseTolerance)
+        {
+            throw new Exception(
+                "Bounding box is not centred on the axis: " +
+                $"X=[{record.BBoxMinXMm}, {record.BBoxMaxXMm}], " +
+                $"Y=[{record.BBoxMinYMm}, {record.BBoxMaxYMm}]");
         }
 
         return record;
     }
 
     private static HollowCylinderPhysicalRecord ComputeConcentricAnnulusLaminarFlowPhysicalRecord(
-        HollowCylinderFeatureRecord featureRecord)
+        HollowCylinderFeatureRecord featureRecord,
+        HollowCylinderConfig config)
     {
-        const double rhoKgPerM3 = 1000.0;
-        const double muPaS = 1.0e-3;
-        const double volumetricFlowRateM3PerS = 1.0e-6;
+        double rhoKgPerM3 = config.DensityKgPerM3;
+        double muPaS = config.DynamicViscosityPaS;
+        double volumetricFlowRateM3PerS = config.VolumetricFlowRateM3PerS;
         const int velocityProfileSampleCount = 17;
 
         double lengthMm = featureRecord.BBoxMaxZMm - featureRecord.BBoxMinZMm;
         double outerRadiusMm = Math.Max(
-            Math.Abs(featureRecord.BBoxMaxXMm),
-            Math.Abs(featureRecord.BBoxMaxYMm));
+            Math.Max(Math.Abs(featureRecord.BBoxMaxXMm), Math.Abs(featureRecord.BBoxMaxYMm)),
+            Math.Max(Math.Abs(featureRecord.BBoxMinXMm), Math.Abs(featureRecord.BBoxMinYMm)));
 
         double areaMm2 = featureRecord.VolumeMm3 / lengthMm;
         double innerRadiusMm = Math.Sqrt(
             outerRadiusMm * outerRadiusMm - areaMm2 / Math.PI);
+
+        if (!(innerRadiusMm > 0.0) || innerRadiusMm >= outerRadiusMm)
+        {
+            throw new Exception(
+                $"Reconstructed radii are not a valid annulus: inner={innerRadiusMm} mm, " +
+                $"outer={outerRadiusMm} mm");
+        }
 
         double kappa = innerRadiusMm / outerRadiusMm;
         double areaM2 = areaMm2 * 1.0e-6;
@@ -318,6 +472,12 @@ class HollowCylinderTask
 
         double meanVelocityMPerS = volumetricFlowRateM3PerS / areaM2;
         double reynolds = rhoKgPerM3 * meanVelocityMPerS * hydraulicDiameterM / muPaS;
+
+        if (reynolds >= 2000.0)
+        {
+            throw new Exception(
+                $"Requested flow is not laminar: Re={reynolds:F1} (must stay below 2000)");
+        }
 
         double annulusFactor =
             1.0 + kappa * kappa + (1.0 - kappa * kappa) / Math.Log(kappa);
@@ -369,17 +529,22 @@ class HollowCylinderTask
             }
         }
 
+        // Signed in the increasing-radial direction: the wall drags the fluid
+        // forward at the inner wall (positive) and holds it back at the outer
+        // wall (negative). Keeping one coordinate system for both avoids the
+        // sign confusion that a "magnitude" would hide.
         double innerWallShearStressPa =
-            ComputeShearStressPa(innerRadiusM, dpDz, pressureGradientPaPerM, innerRadiusM, outerRadiusM);
+            ComputeShearStressPa(innerRadiusM, dpDz, muPaS, innerRadiusM, outerRadiusM);
 
         double outerWallShearStressPa =
-            ComputeShearStressPa(outerRadiusM, dpDz, pressureGradientPaPerM, innerRadiusM, outerRadiusM);
+            ComputeShearStressPa(outerRadiusM, dpDz, muPaS, innerRadiusM, outerRadiusM);
 
         return new HollowCylinderPhysicalRecord
         {
-            SchemaVersion = "sgk-mini.physical-record.v2",
+            SchemaVersion = "sgk-mini.physical-record.v3",
             CaseId = featureRecord.CaseId,
-            SourceFeaturePath = Path.Combine("output", "hollow-cylinder.features.json"),
+            SourceFeaturePath = featureRecord.SourceVdbPath
+                .Replace(".vdb", ".features.json", StringComparison.Ordinal),
             PhysicalCase = "steady-fully-developed-laminar-axial-flow-in-concentric-annulus",
             GeometryInterpretation =
                 "The hollow-cylinder voxel body is the solid wall material between the inner " +
@@ -417,6 +582,10 @@ class HollowCylinderTask
             SampledMaxVelocityRadiusMm = sampledMaxVelocityRadiusMm,
             InnerWallShearStressPa = innerWallShearStressPa,
             OuterWallShearStressPa = outerWallShearStressPa,
+            ShearStressSignConvention =
+                "signed mu*du/dr in the increasing-r direction; positive at the inner wall, " +
+                "negative at the outer wall",
+            VoxelSizeMm = featureRecord.VoxelSizeMm,
             VelocityProfileSamples = velocityProfileSamples
         };
     }
@@ -480,7 +649,7 @@ class HollowCylinderTask
     private static double ComputeShearStressPa(
         double radiusM,
         double dpDz,
-        double pressureGradientPaPerM,
+        double muPaS,
         double innerRadiusM,
         double outerRadiusM)
     {
@@ -489,9 +658,9 @@ class HollowCylinderTask
             innerRadiusM,
             outerRadiusM,
             dpDz,
-            1.0e-3);
+            muPaS);
 
-        return 1.0e-3 * duDr;
+        return muPaS * duDr;
     }
 
     private static HollowCylinderPhysicalRecord ReadAndValidatePhysicalRecord(string physicalPath)
@@ -506,14 +675,40 @@ class HollowCylinderTask
             throw new Exception("Physical record deserialization returned null");
         }
 
-        if (record.SchemaVersion != "sgk-mini.physical-record.v2")
+        if (record.SchemaVersion != "sgk-mini.physical-record.v3")
         {
             throw new Exception($"Unexpected physical schema version: {record.SchemaVersion}");
         }
 
-        if (record.CaseId != "hollow-cylinder")
+        if (string.IsNullOrWhiteSpace(record.CaseId))
         {
-            throw new Exception($"Unexpected physical case id: {record.CaseId}");
+            throw new Exception("Physical record case id is empty");
+        }
+
+        RequireFinite(record.DensityKgPerM3, "density");
+        RequireFinite(record.DynamicViscosityPaS, "dynamic viscosity");
+        RequireFinite(record.VolumetricFlowRateM3PerS, "volumetric flow rate");
+        RequireFinite(record.LengthMm, "physical length");
+        RequireFinite(record.OuterRadiusMm, "outer radius");
+        RequireFinite(record.InnerRadiusMm, "inner radius");
+        RequireFinite(record.CrossSectionAreaMm2, "cross-section area");
+        RequireFinite(record.RadiusRatio, "radius ratio");
+        RequireFinite(record.MeanVelocityMPerS, "mean velocity");
+        RequireFinite(record.ReynoldsNumber, "Reynolds number");
+        RequireFinite(record.PressureGradientPaPerM, "pressure gradient");
+        RequireFinite(record.PressureDropPa, "pressure drop");
+        RequireFinite(record.MaxVelocityMPerS, "max velocity");
+        RequireFinite(record.MaxVelocityRadiusMm, "max velocity radius");
+        RequireFinite(record.SampledMaxVelocityMPerS, "sampled max velocity");
+        RequireFinite(record.SampledMaxVelocityRadiusMm, "sampled max velocity radius");
+        RequireFinite(record.InnerWallShearStressPa, "inner wall shear stress");
+        RequireFinite(record.OuterWallShearStressPa, "outer wall shear stress");
+        RequireFinite(record.VoxelSizeMm, "voxel size");
+
+        if (record.DensityKgPerM3 <= 0 || record.DynamicViscosityPaS <= 0 ||
+            record.VolumetricFlowRateM3PerS <= 0)
+        {
+            throw new Exception("Density, viscosity and flow rate must be positive");
         }
 
         if (record.LengthMm <= 0)
@@ -578,9 +773,50 @@ class HollowCylinderTask
                 $"{record.SampledMaxVelocityMPerS} > {record.MaxVelocityMPerS}");
         }
 
+        // The record is a closed set of numbers: every derived quantity must be
+        // reproducible from the ones it claims to derive from. A mismatch means
+        // the file was edited or produced by a different formula.
+        double areaM2 = record.CrossSectionAreaMm2 * 1.0e-6;
+        double expectedMeanVelocity = record.VolumetricFlowRateM3PerS / areaM2;
+
+        if (!IsCloseRelative(record.MeanVelocityMPerS, expectedMeanVelocity, 1.0e-9))
+        {
+            throw new Exception(
+                $"Mean velocity {record.MeanVelocityMPerS} does not equal Q/area " +
+                $"{expectedMeanVelocity}");
+        }
+
+        double hydraulicDiameterM = 2.0 * (record.OuterRadiusMm - record.InnerRadiusMm) * 1.0e-3;
+        double expectedReynolds =
+            record.DensityKgPerM3 * record.MeanVelocityMPerS * hydraulicDiameterM /
+            record.DynamicViscosityPaS;
+
+        if (!IsCloseRelative(record.ReynoldsNumber, expectedReynolds, 1.0e-9))
+        {
+            throw new Exception(
+                $"Reynolds number {record.ReynoldsNumber} does not match its definition " +
+                $"{expectedReynolds}");
+        }
+
         if (record.VelocityProfileSamples is null || record.VelocityProfileSamples.Length != 17)
         {
             throw new Exception("Velocity profile sample array is missing or has unexpected length");
+        }
+
+        for (int i = 0; i < record.VelocityProfileSamples.Length; i++)
+        {
+            VelocityProfileSample sample = record.VelocityProfileSamples[i];
+
+            RequireFinite(sample.RadiusMm, $"profile radius {i}");
+            RequireFinite(sample.RadiusNormalized, $"profile normalized radius {i}");
+            RequireFinite(sample.AxialVelocityMPerS, $"profile velocity {i}");
+
+            if (sample.RadiusMm < record.InnerRadiusMm - 1.0e-9 ||
+                sample.RadiusMm > record.OuterRadiusMm + 1.0e-9)
+            {
+                throw new Exception(
+                    $"Profile sample {i} lies outside the annulus: r={sample.RadiusMm}");
+            }
         }
 
         if (Math.Abs(record.VelocityProfileSamples[0].AxialVelocityMPerS) > 1.0e-9)
@@ -593,7 +829,64 @@ class HollowCylinderTask
             throw new Exception("Outer wall velocity sample is not approximately zero");
         }
 
+        // The analytical profile is unimodal: it rises from the inner wall,
+        // reaches one maximum, and falls to the outer wall. A second turning
+        // point means the samples do not describe this solution.
+        int peakIndex = 0;
+        for (int i = 1; i < record.VelocityProfileSamples.Length; i++)
+        {
+            if (record.VelocityProfileSamples[i].AxialVelocityMPerS >
+                record.VelocityProfileSamples[peakIndex].AxialVelocityMPerS)
+            {
+                peakIndex = i;
+            }
+        }
+
+        for (int i = 1; i <= peakIndex; i++)
+        {
+            if (record.VelocityProfileSamples[i].AxialVelocityMPerS <
+                record.VelocityProfileSamples[i - 1].AxialVelocityMPerS - 1.0e-12)
+            {
+                throw new Exception($"Profile is not monotone before its peak at sample {i}");
+            }
+        }
+
+        for (int i = peakIndex + 1; i < record.VelocityProfileSamples.Length; i++)
+        {
+            if (record.VelocityProfileSamples[i].AxialVelocityMPerS >
+                record.VelocityProfileSamples[i - 1].AxialVelocityMPerS + 1.0e-12)
+            {
+                throw new Exception($"Profile is not monotone after its peak at sample {i}");
+            }
+        }
+
+        if (record.InnerWallShearStressPa <= 0 || record.OuterWallShearStressPa >= 0)
+        {
+            throw new Exception(
+                "Wall shear stresses do not follow the recorded sign convention " +
+                $"(inner={record.InnerWallShearStressPa}, outer={record.OuterWallShearStressPa})");
+        }
+
+        if (string.IsNullOrWhiteSpace(record.ShearStressSignConvention))
+        {
+            throw new Exception("Shear stress sign convention is not recorded");
+        }
+
         return record;
+    }
+
+    private static bool IsCloseRelative(double a, double b, double relativeTolerance)
+    {
+        double scale = Math.Max(Math.Abs(a), Math.Abs(b));
+        return Math.Abs(a - b) <= relativeTolerance * Math.Max(scale, 1.0e-30);
+    }
+
+    private static void RequireFinite(double value, string name)
+    {
+        if (!double.IsFinite(value))
+        {
+            throw new Exception($"Non-finite {name}: {value}");
+        }
     }
 }
 
@@ -602,6 +895,7 @@ class HollowCylinderFeatureRecord
     public string SchemaVersion { get; set; } = "";
     public string CaseId { get; set; } = "";
     public string SourceVdbPath { get; set; } = "";
+    public double VoxelSizeMm { get; set; }
     public float VolumeMm3 { get; set; }
     public float BBoxMinXMm { get; set; }
     public float BBoxMinYMm { get; set; }
@@ -638,6 +932,8 @@ class HollowCylinderPhysicalRecord
     public double SampledMaxVelocityRadiusMm { get; set; }
     public double InnerWallShearStressPa { get; set; }
     public double OuterWallShearStressPa { get; set; }
+    public string ShearStressSignConvention { get; set; } = "";
+    public double VoxelSizeMm { get; set; }
     public VelocityProfileSample[] VelocityProfileSamples { get; set; } = Array.Empty<VelocityProfileSample>();
 }
 

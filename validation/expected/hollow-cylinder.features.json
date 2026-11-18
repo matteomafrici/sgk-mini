@@ -1,7 +1,8 @@
 {
-  "SchemaVersion": "sgk-mini.feature-record.v1",
+  "SchemaVersion": "sgk-mini.feature-record.v2",
   "CaseId": "hollow-cylinder",
-  "SourceVdbPath": "output/hollow-cylinder.vdb",
+  "SourceVdbPath": "hollow-cylinder.vdb",
+  "VoxelSizeMm": 0.2,
   "VolumeMm3": 5656.542,
   "BBoxMinXMm": -10.000007,
   "BBoxMinYMm": -10.000007,

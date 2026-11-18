@@ -1,7 +1,7 @@
 {
-  "SchemaVersion": "sgk-mini.physical-record.v2",
+  "SchemaVersion": "sgk-mini.physical-record.v3",
   "CaseId": "hollow-cylinder",
-  "SourceFeaturePath": "output/hollow-cylinder.features.json",
+  "SourceFeaturePath": "hollow-cylinder.features.json",
   "PhysicalCase": "steady-fully-developed-laminar-axial-flow-in-concentric-annulus",
   "GeometryInterpretation": "The hollow-cylinder voxel body is the solid wall material between the inner and outer radius; its volume and bounding box are used only to recover those radii. The fluid domain is the concentric annular space bounded by them, not the voxel solid, and no separate fluid region is extracted from the geometry.",
   "FluidName": "water-like-reference",
@@ -34,6 +34,8 @@
   "SampledMaxVelocityRadiusMm": 8.999674223067668,
   "InnerWallShearStressPa": 0.02758945677383473,
   "OuterWallShearStressPa": -0.025605461383432008,
+  "ShearStressSignConvention": "signed mu*du/dr in the increasing-r direction; positive at the inner wall, negative at the outer wall",
+  "VoxelSizeMm": 0.2,
   "VelocityProfileSamples": [
     {
       "SampleIndex": 0,
