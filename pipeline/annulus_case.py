@@ -22,12 +22,14 @@ import shutil
 import subprocess
 import sys
 import tempfile
+import threading
 import time
 
 REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 REFERENCE_CASE = os.path.join(REPO, "validation", "openfoam", "annulus_cyclic")
 DLL = os.path.join(REPO, "src", "SGK.Geometry", "bin", "Debug", "net9.0", "SGK.Geometry.dll")
 DATASET_ROOT = os.path.expanduser("~/data/datasets/sgk-mini")
+GEOMETRY_VIEWER = threading.Lock()
 
 SCHEMA = "sgk-mini.dataset-record.v1"
 MIN_GAP_MM = 0.6
@@ -180,13 +182,14 @@ def run_geometry(request, case_dir):
     with open(config_path, "w") as f:
         json.dump(geometry_config(request, geometry_dir), f, indent=2)
 
-    result = subprocess.run(
-        ["dotnet", DLL, "--auto-exit", "--config", config_path],
-        cwd=os.path.dirname(DLL),
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-        text=True,
-    )
+    with GEOMETRY_VIEWER:
+        result = subprocess.run(
+            ["dotnet", DLL, "--auto-exit", "--config", config_path],
+            cwd=os.path.dirname(DLL),
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+        )
 
     log_path = os.path.join(case_dir, "log.geometry")
     with open(log_path, "w") as f:
@@ -441,12 +444,16 @@ def assemble(case_dir, request, features, physical, features_path, physical_path
         ok = False
         reasons.append("geometry: " + "; ".join(c["name"] for c in failed_geometry))
 
-    mesh_ok, mesh_detail = mesh_check(case_dir)
+    mesh_ok, mesh_detail = mesh_check(case_dir) if returncode is not None else (
+        True, "Skipped after geometry rejection",
+    )
     if not mesh_ok:
         ok = False
         reasons.append(f"mesh: {mesh_detail}")
 
-    if report is None:
+    if returncode is None:
+        checks = []
+    elif report is None:
         ok = False
         reasons.append("reference run produced no validation report")
         checks = []
@@ -501,7 +508,7 @@ def write_json(path, value):
     os.replace(temporary, path)
 
 
-def run_case(request, root=DATASET_ROOT):
+def run_case(request, root=DATASET_ROOT, *, require_geometry=False):
     """Run one requested case end to end and return its dataset record.
 
     Every failure path still writes a record with the reason and whatever
@@ -530,8 +537,10 @@ def run_case(request, root=DATASET_ROOT):
         features, physical, features_path, physical_path, vdb_path = run_geometry(request, case_dir)
         geometry_checks_list = geometry_checks(request, features, physical)
         stage = "reference"
-        prepare_openfoam_case(request, physical, case_dir)
-        returncode, report, _, validation_path = run_reference(case_dir, physical_path)
+        returncode, report, validation_path = None, None, None
+        if not require_geometry or all(check["passed"] for check in geometry_checks_list):
+            prepare_openfoam_case(request, physical, case_dir)
+            returncode, report, _, validation_path = run_reference(case_dir, physical_path)
         record = assemble(
             case_dir, request, features, physical, features_path, physical_path,
             vdb_path, geometry_checks_list, returncode, report, validation_path,

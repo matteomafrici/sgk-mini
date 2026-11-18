@@ -68,3 +68,20 @@ cells depends on length and radial pitch. A short, wide-gap annulus can have
 eight axial cells, while a long or narrow-gap annulus can need more. The runner
 checks the physical inputs before `blockMesh` and requires `checkMesh` to
 report `Mesh OK.` before starting the solver.
+
+## Initial CFD batch
+
+`batch-cases-v1.json` freezes 20 new physical points from the seeded Latin
+hypercube. It reserves shape bands for validation, test and edge evaluation
+before any solver run. Voxel retries inherit the physical point and split.
+
+```bash
+~/data/venvs/sgk-mini/bin/python pipeline/run_batch.py --jobs 8
+```
+
+The default output root is `~/data/datasets/sgk-mini/annulus-v1/`.
+The batch runner tests geometry before spending a solver run, follows the
+recorded voxel schedule, and publishes an index after each completed physical
+point. Re-running the command resumes the same manifest and verifies hashes
+before reusing a published attempt. A solver rejection is retained for
+diagnosis. Only index entries with status `ok` are eligible as labels.
