@@ -47,3 +47,11 @@ A separate 30-epoch timing run on all training and validation cases took
 1.25 s of trainer wall time. It used a temporary run directory. The full
 baseline still needs its own run and validation review. The test and
 stress splits remained unopened in both experiments.
+
+On the local RTX 5070 Ti Laptop GPU, a synthetic 48 × 64 FNO step took
+about 0.0067 s and a synthetic 24 × 24 × 16 GINO step took about 1.86 s with
+1,024 surface points, 1,300 queries and the pure PyTorch neighbour search.
+These are forward/backward/optimizer timings for one example. They omit
+conversion, validation, and any transfer or geometry caching work. They do
+not qualify either spatial model. Benchmark actual case geometry, neighbour
+coverage and memory before committing to a GINO training budget.
