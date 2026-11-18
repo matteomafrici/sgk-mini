@@ -244,13 +244,16 @@ stress test at reconstructed Re = 1989.7 passed the existing checks. See the
 
 ## What is missing
 
+See the [current state and handoff](docs/sgk-mini-status.md) before resuming
+dataset or model work.
+
 - The geometry is not yet consumed by the physics: the annular benchmark is
   reconstructed from scalar features (bbox + volume), not from the voxel field,
   and the CFD case is built from those scalars. The geometry→physics coupling is
   currently nominal.
-- The full dataset. An eight-case pilot pipeline exists (`pipeline/`) and was
-  run to completion with four passing and four failing cases; the batch has not
-  been generated.
+- The full dataset. The original pilot had four passes and four failures.
+  The follow-up Latin hypercube passed all eight cases with the revised
+  geometry and CFD workflow. The full batch has not been generated.
 - A first tiny surrogate (PhysicsNeMo), with its inference accuracy and speed
   measured against the analytical and CFD ground truth.
 - A minimal Layer 3 optimization loop.
