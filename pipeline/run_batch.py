@@ -26,26 +26,25 @@ def verify_record(path, request):
     return record
 
 
+def attempt_records(root, case_id):
+    return sorted((root / case_id / "attempts").glob("*/dataset-record.json"),
+                  key=lambda path: (path.stat().st_mtime_ns, path))
+
+
 def solve_point(point, root, voxel_trials, recovery):
-    attempts = []
-    for voxel in voxel_trials + recovery.get("extra_voxel_trials_mm", []):
-        request = Request.from_dict(point | {"voxel_size_mm": voxel})
-
-        def records():
-            return sorted((root / request.case_id / "attempts").glob("*/dataset-record.json"),
-                          key=lambda path: (path.stat().st_mtime_ns, path))
-
-        paths = records()
+    requests = [Request.from_dict(point | {"voxel_size_mm": voxel})
+                for voxel in voxel_trials + recovery.get("extra_voxel_trials_mm", [])]
+    for request in requests:
+        paths = attempt_records(root, request.case_id)
         if not paths:
             run_case(request, str(root), require_geometry=True)
-            paths = records()
+            paths = attempt_records(root, request.case_id)
         record = verify_record(paths[-1], request)
         retry = recovery.get("retry_reference_if")
         if len(paths) == 1 and retry and record["failure_reason"] == retry:
             run_case(request, str(root), require_geometry=True)
-            paths = records()
+            paths = attempt_records(root, request.case_id)
             record = verify_record(paths[-1], request)
-        attempts.extend(str(path.relative_to(root)) for path in paths)
         geometry = record.get("geometry")
         reference = record.get("reference")
         if geometry is None or all(check["passed"] for check in geometry["checks"]):
@@ -53,6 +52,10 @@ def solve_point(point, root, voxel_trials, recovery):
         if reference and reference["solver_exit_code"] is not None:
             raise ValueError(f"{request.case_id}: a rejected geometry reached the solver")
 
+    # A revised schedule can accept a new resolution before reaching an
+    # older rejected trial. Keep that old evidence in the index as well.
+    attempts = sorted((path for trial in requests for path in attempt_records(root, trial.case_id)),
+                      key=lambda path: (path.stat().st_mtime_ns, path))
     return {
         "physical_case_id": point["case_id"],
         "split": point["split"],
@@ -62,7 +65,7 @@ def solve_point(point, root, voxel_trials, recovery):
         "selected_case_id": request.case_id if record["status"] == "ok" else None,
         "voxel_size_mm": request.voxel_size_mm,
         "record": str(paths[-1].relative_to(root)),
-        "attempts": attempts,
+        "attempts": [str(path.relative_to(root)) for path in attempts],
     }
 
 
@@ -73,9 +76,13 @@ def main():
     parser.add_argument("--root", type=Path, default=Path(DATASET_ROOT) / "annulus-v1")
     parser.add_argument("--jobs", type=int, default=6)
     parser.add_argument("--recovery", type=Path, help="append a recorded case-specific recovery plan")
+    parser.add_argument("--revise-recovery", action="store_true",
+                        help="archive the old recovery plan and add new trials")
     args = parser.parse_args()
     if args.jobs < 1:
         parser.error("--jobs must be positive")
+    if args.revise_recovery and not args.recovery:
+        parser.error("--revise-recovery requires --recovery")
 
     manifest = read_json(args.manifest)
     points = manifest["cases"]
@@ -100,15 +107,26 @@ def main():
         recovery = read_json(recovery_path) if recovery_path.exists() else {}
         if args.recovery:
             proposed = read_json(args.recovery)
-            if recovery and proposed != recovery:
-                parser.error("dataset root is already bound to a different recovery plan")
-            recovery = proposed
-            if set(recovery) - set(ids):
+            if set(proposed) - set(ids):
                 parser.error("recovery plan refers to cases outside the batch")
-            for action in recovery.values():
+            for action in proposed.values():
                 sizes = voxel_trials + action.get("extra_voxel_trials_mm", [])
-                if sorted(set(sizes), reverse=True) != sizes or min(sizes) <= 0:
-                    parser.error("recovery voxels must extend the decreasing schedule")
+                if len(set(sizes)) != len(sizes) or min(sizes) <= 0:
+                    parser.error("recovery voxel sizes must be positive and unique")
+            if recovery and proposed != recovery:
+                if not args.revise_recovery:
+                    parser.error("dataset root is already bound to a different recovery plan")
+                for case_id, old in recovery.items():
+                    new = proposed.get(case_id)
+                    if (new is None
+                            or new.get("retry_reference_if") != old.get("retry_reference_if")
+                            or set(old.get("extra_voxel_trials_mm", []))
+                            - set(new.get("extra_voxel_trials_mm", []))):
+                        parser.error("recovery revision must retain previous trials and retry rules")
+                archived = root / f"recovery-{sha256(recovery_path)}.json"
+                if not archived.exists():
+                    archived.write_bytes(recovery_path.read_bytes())
+            recovery = proposed
             write_json(str(recovery_path), recovery)
         build()
 

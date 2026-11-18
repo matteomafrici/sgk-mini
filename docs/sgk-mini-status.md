@@ -16,8 +16,9 @@ Use this note to resume the mini.
   both native and saved-field flow errors below 0.05% and pressure-gradient
   error below 0.5%, along with the other checks in the protocol.
 - The first CFD batch is complete. Its frozen design has 20 physical points:
-  11 accepted for training, 4 for validation, 3 for test and 1 for edge
-  evaluation. The rejected edge point stays visible with its attempts.
+  11 accepted for training, 4 for validation, 3 for test and 2 for edge
+  evaluation. The narrow-gap edge point passed at 0.09 mm. Its failed attempts,
+  including the native runtime crash at 0.05 mm, remain indexed.
   The batch runner applies a declared voxel recovery schedule and validates
   geometry before starting OpenFOAM.
 - A VDB-to-CFD-array conversion probe passed on one accepted training case.
@@ -64,7 +65,7 @@ and a stated calibration and uncertainty model.
 ## Next steps
 
 1. Choose the training representation from the accepted case artifacts.
-   Keep the frozen `Ri/Ro` split. The current 19 labels are the budget for a
+   Keep the frozen `Ri/Ro` split. The current 20 labels are the budget for a
    first learning curve.
 2. Extend the conversion probe across accepted cases and test the narrowest
    resolved geometries. Decide the grid, point sampling and normalization.

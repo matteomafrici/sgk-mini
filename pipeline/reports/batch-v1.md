@@ -15,14 +15,18 @@ acceptance thresholds remained unchanged.
   validator rejected extraction. Grouping by expected mesh station counts
   with a tolerance of 1e-8 m fixed the issue. Replay and a fresh reference run
   passed. Both attempts remain in the index.
-- **Narrow-gap edge case `ann-15e22abc` (0.601 mm nominal gap).** The best
-  result in the original schedule missed the absolute volume limit of 0.1%,
-  with an error of −0.1094% at 0.10 mm. At 0.05 mm the native runtime stopped
-  with SIGSEGV before writing a VDB. The core shows `Library_nTotalMemUsage`
-  traversing an OpenVDB tree while another thread was in
-  `Voxels_BoolSubtract`. Concurrent traversal is a plausible cause. The
-  root cause was not confirmed and the kernel journal records a segfault
-  rather than an OOM kill. The rejected point has no CFD label.
+- **Narrow-gap edge case `ann-15e22abc` (0.601 mm nominal gap).** The 0.10 mm
+  attempt missed the absolute volume limit of 0.1%, with an error of −0.1094%.
+  At 0.05 mm PicoGK stopped with SIGSEGV before writing a VDB. The core
+  shows `Library_nTotalMemUsage` on the background memory monitor while
+  another thread was in `Voxels_BoolSubtract` and OpenVDB tree pruning.
+  Concurrent traversal is the leading explanation. The kernel logged a
+  segfault, with no OOM kill recorded in that interval. The surviving logs
+  show that the viewer was active with `--auto-exit`. Intermediate trials at
+  0.095 and 0.09 mm recovered the case at 0.09 mm, without modifying the
+  runtime. The accepted volume error was −0.0497%, the reconstructed gap was
+  0.600822 mm, and the gradient error was 0.201792%. The original crash and
+  all rejected runs remain indexed.
 - **Conversion probe `ann-7939f294`.** PicoGK reloaded the accepted VDB,
   supplied 45,096 surface vertices and a 48 × 48 × 32 narrow-band SDF grid.
   The probe maps 1,300 native CFD cell locations and vector values into the
@@ -36,26 +40,26 @@ acceptance thresholds remained unchanged.
 
 ## Final index audit
 
-The publication accounts for all 20 requested points and 30 attempts. It
-contains 19 accepted CFD labels, with 11 in train, 4 in validation, 3 in test
-and 1 in edge. The second edge case is explicitly rejected. Accepted voxel
-sizes were 0.20 mm for 15 cases, 0.15 mm for 3 cases and 0.10 mm for 1 case.
+The revised index accounts for 20 points and 32 attempts. All 20 have
+accepted CFD labels: 11 train, 4 validation, 3 test and 2 edge. Accepted voxel
+sizes were 0.20 mm for 15 cases, 0.15 mm for 3, 0.10 mm for 1 and 0.09 mm for 1.
 
-The audit checked 6,466 artifact hashes across all attempts and verified that
-accepted cases used the intended common solver settings. It replayed the
-current validator on each accepted field, and independently summed the saved
-outlet `phi` values. All accepted fields stayed below the 0.05% flow and 0.5%
-pressure-gradient limits. The maximum gradient error was 0.05310%.
+The final audit checked 6,793 artifact hashes across all attempts and verified
+the common solver settings. It replayed the current validator on each accepted
+field and independently summed the saved outlet `phi` values. All accepted
+fields stayed below 0.05% flow error and 0.5% pressure-gradient error. The
+maximum gradient error was 0.201792% at the recovered narrow-gap point.
 
-Twenty CFD runs occurred, including the wide-gap retry. OpenFOAM wall time
-ranged from 30 seconds to 19 minutes and 28 seconds per run. The individual
-wall times sum to about 79 minutes with overlap. The eight-worker execution
-and targeted recovery took about 21 minutes from manifest write to the final
-index on this host.
+The first publication took about 21 minutes from manifest write to the index
+on this host. Its 20 CFD executions, including the wide-gap retry, had wall
+times of 30 seconds to 19 minutes and 28 seconds. The targeted narrow-gap
+recovery was performed separately.
 
-The canonical manifest and recovery plan are
-[`batch-cases-v1.json`](../batch-cases-v1.json) and
-[`batch-recovery-v1.json`](../batch-recovery-v1.json).
+The batch manifest is [batch-cases-v1.json](../batch-cases-v1.json).
+The original [recovery plan](../batch-recovery-v1.json) is preserved.
+The [revised plan](../batch-recovery-v2.json) tries the intermediate pitches
+before the finer 0.05 mm trial. A historical 0.05 mm attempt still appears in
+the index even when the case can be accepted earlier.
 The local artifacts are in `~/data/datasets/sgk-mini/annulus-v1/`.
 Read `index.json` for the selected record and all attempts per physical
 point. Use the [runner and converter commands](../README.md) to reproduce
@@ -69,7 +73,7 @@ the batch and the one-case probe.
 | ann-dce3a2fb | validation | 0.2 | 0.02031 / 0.02031 | 0.00942 | accepted |
 | ann-2a6f96d1 | test | 0.2 | 0.02030 / 0.02031 | 0.00954 | accepted |
 | ann-625c9fb9 | test | 0.2 | 0.02031 / 0.02031 | 0.00951 | accepted |
-| ann-15e22abc | edge | 0.05 | — | — | rejected |
+| ann-15e22abc | edge | 0.09 | 0.02031 / 0.02031 | 0.20179 | accepted |
 | ann-cc82c999 | edge | 0.2 | 0.02030 / 0.02031 | 0.00849 | accepted |
 | ann-d4c1c5d6 | train | 0.2 | 0.02031 / 0.02031 | 0.00928 | accepted |
 | ann-96018040 | validation | 0.2 | 0.02031 / 0.02031 | 0.00939 | accepted |

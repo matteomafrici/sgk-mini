@@ -252,7 +252,7 @@ dataset or model work.
   and the CFD case is built from those scalars. The geometry→physics coupling is
   currently nominal.
 - Training preparation across the full dataset. The initial CFD batch
-  produced 19 accepted labels from 20 physical points. The conversion
+  produced 20 accepted labels from 20 physical points. The conversion
   probe passed on one case and has yet to be applied across the batch.
   See the [batch report](pipeline/reports/batch-v1.md).
 - A first tiny surrogate (PhysicsNeMo), with its inference accuracy and speed

@@ -1,0 +1,10 @@
+{
+  "ann-15e22abc": {
+    "extra_voxel_trials_mm": [0.095, 0.09, 0.05],
+    "reason": "Test intermediate voxel pitches after the 0.05 mm native crash. Geometry and CFD limits stay fixed. Keep the original 0.05 mm attempt in the history."
+  },
+  "ann-cc82c999": {
+    "retry_reference_if": "reference run produced no validation report",
+    "reason": "The original field passes replay after correcting the rounded coordinate grouping. Rerun once with the corrected validator and retain the original attempt."
+  }
+}

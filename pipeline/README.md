@@ -86,11 +86,11 @@ point. Re-running the command resumes the same manifest and verifies hashes
 before reusing a published attempt. A solver rejection is retained for
 diagnosis. Only index entries with status `ok` are eligible as labels.
 
-If the original run needs the recorded edge-case recovery, resume it with
-`--recovery pipeline/batch-recovery-v1.json`. The base manifest and existing
-attempts stay in the dataset root. The recovery file records why a finer
-geometry or a repeated reference run was requested. A later resume reuses the
-same recovery plan from the dataset root.
+Use `--recovery pipeline/batch-recovery-v2.json` to reproduce the recovered
+batch. For an existing root bound to the first recovery plan, add
+`--revise-recovery` to archive that plan and apply the new trials. Once applied,
+a resume uses the stored recovery plan. The original physical manifest and
+all attempts stay in the dataset root.
 
 ## One-case conversion probe
 
