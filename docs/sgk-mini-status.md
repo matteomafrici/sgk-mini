@@ -31,9 +31,11 @@ Use this note to resume the mini.
 - The first [Layer 2 diagnostic](../training/README.md) passed. The parameter
   MLP reconstructed one training case in 4.72 s on CPU (300 epochs).
   Its field error against CFD was 0.5653% and its integrated-flow error was
-  0.2183%. This is reconstruction. The full supervised baseline has not
-  qualified a checkpoint, and neither the test split nor the edge split
-  has been opened by the trainer.
+  0.2183%. The subsequent supervised baseline used 11 train and 4 validation
+  cases. Its selected checkpoint missed the screening gate, with worst
+  field, flow and gradient errors of 2.699%, 1.436% and 21.167%.
+  Test and edge remain unopened. The [baseline report](../training/README.md#first-complete-mlp-baseline)
+  records an independent diagnostic of the gradient scaling.
 - The [read-only workbench](../workbench/README.md) displays the actual
   dataset, geometry, reference checks, attempt logs and Git diffs. Its run
   receipt format can display trainer logs and metrics when they are published.
