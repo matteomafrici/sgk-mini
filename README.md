@@ -251,9 +251,10 @@ dataset or model work.
   reconstructed from scalar features (bbox + volume), not from the voxel field,
   and the CFD case is built from those scalars. The geometry→physics coupling is
   currently nominal.
-- The full dataset. The original pilot had four passes and four failures.
-  The follow-up Latin hypercube passed all eight cases with the revised
-  geometry and CFD workflow. The full batch has not been generated.
+- Training preparation across the full dataset. The initial CFD batch
+  produced 19 accepted labels from 20 physical points. The conversion
+  probe passed on one case and has yet to be applied across the batch.
+  See the [batch report](pipeline/reports/batch-v1.md).
 - A first tiny surrogate (PhysicsNeMo), with its inference accuracy and speed
   measured against the analytical and CFD ground truth.
 - A minimal Layer 3 optimization loop.

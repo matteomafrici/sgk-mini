@@ -1,7 +1,7 @@
 # SGK Mini state and handoff
 
-This note records the state after the verified annulus pilot at `4a4fe68`
-and the subsequent review of the four-layer workflow. Use the SGK repository
+This note records the verified annulus pilot at `4a4fe68`, the first CFD
+batch and the subsequent review of the four-layer workflow. Use the SGK repository
 README (locally `/mnt/n/sgk/README.md`) as the source for the wider project.
 Use this note to resume the mini.
 
@@ -15,13 +15,17 @@ Use this note to resume the mini.
   The runner requires `Mesh OK.` before solving. The acceptance checks require
   both native and saved-field flow errors below 0.05% and pressure-gradient
   error below 0.5%, along with the other checks in the protocol.
-- Each attempt has its own directory, diagnostics and artifact hashes. Failed
-  attempts remain available. Voxel refinement has been tested manually on
-  individual cases and is not automatic in the runner.
-- The complete dataset, final training split, geometry-to-tensor converter,
-  trained models, search policy and AI interface remain open. The CFD mesh is
-  built from reconstructed dimensions. The mini has not verified general
-  VDB-to-CFD meshing.
+- The first CFD batch is complete. Its frozen design has 20 physical points:
+  11 accepted for training, 4 for validation, 3 for test and 1 for edge
+  evaluation. The rejected edge point stays visible with its attempts.
+  The batch runner applies a declared voxel recovery schedule and validates
+  geometry before starting OpenFOAM.
+- A VDB-to-CFD-array conversion probe passed on one accepted training case.
+  Batch-wide tensor preparation, model normalization, training, search and
+  the AI interface remain open. The CFD mesh is built from reconstructed
+  dimensions. General VDB-to-CFD meshing remains open.
+- See the [batch report](../pipeline/reports/batch-v1.md) for the outcome,
+  evidence and data paths.
 - The eight executed inputs are in
   [pilot-cases-lhs-refined.json](../pipeline/pilot-cases-lhs-refined.json).
   Reproduction commands and evidence locations are in the
@@ -59,23 +63,14 @@ and a stated calibration and uncertainty model.
 
 ## Next steps
 
-1. Freeze a versioned first batch manifest and the split policy before training.
-   Twenty CFD cases is the proposed initial budget in the dataset plan.
-   Treat it as a budget for a first learning curve. Group complete cases by
-   normalized shape, using `Ri/Ro` for the concentric annulus. Keep resolutions
-   and equivalent profiles together. Declare held-out shape groups and an
-   edge test. Record whether the batch includes the existing pilot or starts
-   a fresh design. Keep the diagnostic stress run separate from the split.
-2. Run the declared CFD batch in a fresh dataset root. Start at 0.2 mm voxel
-   size and try finer resolution only for cases that miss geometry checks.
-   Preserve each attempt. Reuse an accepted field only when its case identity,
-   solver configuration and artifact hashes match. Check the final index
-   against the manifest, including rejected or missing cases.
-3. Verify the converter on one accepted case. Derive geometry input from
-   PicoGK, align the voxel and CFD coordinate systems, and test units, wall
-   positions, positional sampling and numerical integration of the saved
-   labels. OpenFOAM's periodic pressure field and the driving pressure
-   gradient are distinct outputs. Save the converter configuration.
+1. Choose the training representation from the accepted case artifacts.
+   Keep the frozen `Ri/Ro` split. The current 19 labels are the budget for a
+   first learning curve.
+2. Extend the conversion probe across accepted cases and test the narrowest
+   resolved geometries. Decide the grid, point sampling and normalization.
+   Preserve alignment, wall positions and flow through the prepared labels.
+3. Define field, wall, integrated flow and driving-gradient acceptance before
+   training. Keep periodic pressure and pressure gradient as distinct outputs.
 4. Train the simplest supervised controls and a small geometry-aware model.
    Check one-case reconstruction first, then held-out geometry, wall error,
    mass balance and the engineering quantities used by search.
