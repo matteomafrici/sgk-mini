@@ -36,6 +36,12 @@ Use this note to resume the mini.
   field, flow and gradient errors of 2.699%, 1.436% and 21.167%.
   Test and edge remain unopened. The [baseline report](../training/README.md#first-complete-mlp-baseline)
   records an independent diagnostic of the gradient scaling.
+- The controlled gap-scaling follow-up passed every validation gate with the
+  same 11 CFD training cases. Peak validation errors were 0.149% on the
+  field, 0.024% on flow and 0.191% on gradient. The CFD/analytical data-size
+  comparison found no need for more CFD labels to meet the current gates.
+  Keep this checkpoint as the parameter baseline. Test and stress remain
+  unopened, and FNO is the next Layer 2 comparator.
 - The [read-only workbench](../workbench/README.md) displays the actual
   dataset, geometry, reference checks, attempt logs and Git diffs. Its run
   receipt format can display trainer logs and metrics when they are published.

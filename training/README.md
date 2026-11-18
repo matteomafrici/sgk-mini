@@ -82,3 +82,42 @@ gap in that scale gave a range of 11.888 to 11.999. Linear interpolation in
 on these validation samples. This diagnostic motivates a controlled scaling
 comparison and says nothing about the velocity error or the stress split.
 The original checkpoint and screening gates are retained.
+
+## Resolved parameter baseline on validation
+
+Run `mlp-20261118T224857780942Z` at `1c53d21` is the controlled comparison
+with the first complete baseline. It retains the original CFD case order,
+300 epochs, seed and loss, and changes the gradient scale to
+`mu * Ubar / gap^2`. It selected epoch 297 and passes every fixed gate
+on all four validation cases. Reloading the checkpoint reproduced the metrics.
+The maximum flow error at each of the 300 epochs is identical in the two
+controlled runs. The velocity and gradient heads have separate parameters.
+The new gradient scale removed the bias in checkpoint selection toward epoch
+11, where the velocity head had had fewer updates.
+
+| Training labels and order | Maximum field error (%) | Maximum flow error (%) | Maximum gradient error (%) |
+|---|---:|---:|---:|
+| CFD 11, original scale and order | 2.699 | 1.436 | 21.167 |
+| CFD 11, gap scale and original order | 0.149 | 0.024 | 0.191 |
+| CFD 4, gap scale and ratio order | 0.140 | 0.013 | 0.574 |
+| CFD 7, gap scale and ratio order | 0.127 | 0.024 | 0.414 |
+| CFD 11, gap scale and ratio order | 0.131 | 0.018 | 0.420 |
+| Analytical 11, gap scale and matched ratios | 0.106 | 0.014 | 0.438 |
+| Analytical 64, gap scale and denser ratios | 0.142 | 0.065 | 0.084 |
+
+All follow-up runs used 3,300 optimizer updates and 300 validation
+observations. A single seed and four validation cases cannot establish a
+learning curve for a wider distribution. Here, denser analytical coverage
+improved gradient accuracy while velocity and flow error rose slightly.
+No extra CFD labels are required to meet the current validation gates.
+The recommended parameter comparator is the gap-scaled model trained on
+all 11 CFD cases in original order:
+
+```bash
+~/data/venvs/sgk-neuralop/bin/python training/train_annulus.py mlp \
+  --gradient-scale gap --updates-per-epoch 11
+```
+
+The gates and data splits did not change after the experiment. No
+test or stress outputs were opened. Hold those splits for the planned frozen
+comparison after the spatial baselines have been evaluated on validation.
