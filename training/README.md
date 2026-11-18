@@ -1,8 +1,9 @@
 # SGK Mini training pipeline
 
 Review the [protocol and screening gates](protocol.md) first. The executable
-first stage is the parameter MLP. FNO, GINO and the optional physics-loss
-comparison are separate milestones with the same evaluation contract.
+stages are the parameter MLP and meridional FNO. GINO and the optional
+physics-loss comparison are further milestones with the same evaluation
+contract.
 
 Use the existing `sgk-neuralop` environment. The MLP uses two CPU threads by
 default. The training data is read from the prepared, hashed batch index.
@@ -125,7 +126,7 @@ comparison after the spatial baselines have been evaluated on validation.
 ## Meridional FNO
 
 The FNO stage uses the same case split, query weights and acceptance
-metrics as the MLP. It trains on the calibrated axial component in a
+metrics as the MLP. It trains on the native axial velocity in a
 meridional representation of the periodic wedge.
 
 ```bash
@@ -138,3 +139,36 @@ The first command measures the grid transfer alone. Each training entry
 point repeats the relevant transfer gate before updating weights. Only
 training and validation cases are read by this CLI. Run receipts identify
 the model, grid configuration and NeuralOperator version.
+
+### Meridional FNO results
+
+The 65 × 32 grid round trip passed on all 15 training and validation
+cases. Maximum transfer errors were 0.06497% for the weighted field,
+0.05265% of peak near the walls and 0.06667% for integrated flow.
+These compare transferred CFD with native CFD. They are independent
+of fitting the model.
+
+NeuralOperator's state dictionary added constructor metadata to the first
+smoke checkpoint. That attempt is retained as failed. The trainer now stores
+the PyTorch weight state and records the FNO settings in the run receipt.
+The repeated smoke run passed in 6.83 s on CUDA.
+
+Run `fno-20261118T225719440682Z` at `35105a4` trained for 300 epochs on
+11 cases and selected epoch 297 on the four validation cases. It took
+36.40 s on the local RTX 5070 Ti Laptop GPU. The checkpoint was reloaded
+and the validation metrics were reproduced.
+
+| Maximum validation error (%) | MLP, gap scale | Meridional FNO | Gate |
+|---|---:|---:|---:|
+| Field | 0.14854 | 0.06731 | 2.0 |
+| Near-wall | 0.23348 | 0.19220 | 3.0 |
+| Sampled peak | 0.15337 | 0.07705 | 2.0 |
+| Integrated flow | 0.02377 | 0.01817 | 1.0 |
+| Driving gradient | 0.19139 | 0.04045 | 5.0 |
+
+The FNO is a second qualified validation comparator. This experiment
+compares model families on the current annulus. The FNO sees a meridional
+SDF and the normalized gap and radius ratio, so this result does not
+isolate the effect of the geometry input. The MLP used CPU, so the observed
+wall times are not a controlled device-to-device comparison. Test and
+stress remain unopened.

@@ -40,8 +40,12 @@ Use this note to resume the mini.
   same 11 CFD training cases. Peak validation errors were 0.149% on the
   field, 0.024% on flow and 0.191% on gradient. The CFD/analytical data-size
   comparison found no need for more CFD labels to meet the current gates.
-  Keep this checkpoint as the parameter baseline. Test and stress remain
-  unopened, and FNO is the next Layer 2 comparator.
+  Keep this checkpoint as the parameter baseline. The meridional FNO also
+  passed all validation gates after independently passing the grid-transfer
+  check. Its maximum field, flow and gradient errors were 0.0673%, 0.0182%
+  and 0.0405%. The [FNO results](../training/README.md#meridional-fno-results)
+  record the checkpoint and timing. Test and stress remain unopened.
+  GINO is the next Layer 2 comparator.
 - The [read-only workbench](../workbench/README.md) displays the actual
   dataset, geometry, reference checks, attempt logs and Git diffs. Its run
   receipt format can display trainer logs and metrics when they are published.
