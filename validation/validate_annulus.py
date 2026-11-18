@@ -660,6 +660,12 @@ def build_report(case_dir, bench_path, log_path, flux_path):
         "residuals": solver["residuals"],
         "residual_targets": solver["targets"],
         "continuity_global": solver["continuity_global"],
+        "continuity_flow_m3_s": (
+            solver["continuity_global"] * float(np.sum(volumes))
+            / read_scalar_dict(
+                os.path.join(case_dir, "system", "controlDict"), {"deltaT"}
+            )["deltaT"] if solver["continuity_global"] is not None else None
+        ),
         "p_field_max_abs": p_field_max_abs,
         "p_field_ratio": p_field_ratio,
         "max_transverse_ratio": max_transverse_ratio,
@@ -742,9 +748,9 @@ def evaluate(report):
     )
     add(
         "continuity closed",
-        report["continuity_global"] is not None
-        and abs(report["continuity_global"]) < TOL["imbalance"] * abs(report["Q_right"]),
-        f"global = {report['continuity_global']:.3e} m3/s",
+        report["continuity_flow_m3_s"] is not None
+        and abs(report["continuity_flow_m3_s"]) < TOL["imbalance"] * abs(report["Q_right"]),
+        f"equivalent sector flow = {report['continuity_flow_m3_s']} m3/s",
     )
     stable = all(
         value is not None and value < TOL["stability"]
@@ -772,7 +778,12 @@ def evaluate(report):
         "full-circle flow rate",
         report["Q_err_pct"] < TOL["q_pct"],
         f"{report['Q_err_pct']:.4f} % < {TOL['q_pct']} % "
-        f"(native); field integral {report['Q_field_err_pct']:.4f} %",
+        "(native)",
+    )
+    add(
+        "saved-field flow rate",
+        report["Q_field_err_pct"] < TOL["q_pct"],
+        f"{report['Q_field_err_pct']:.4f} % < {TOL['q_pct']} %",
     )
     add(
         "pressure gradient",

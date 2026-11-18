@@ -166,6 +166,17 @@ def main():
     finally:
         shutil.rmtree(tmp, ignore_errors=True)
 
+    with open(os.path.join(CASE, "validation.json")) as stream:
+        report = json.load(stream)["report"]
+    # The golden report predates the dimensionally converted continuity metric.
+    report.setdefault("continuity_flow_m3_s", 0.0)
+    report["Q_field_err_pct"] = 0.2203
+    failed = [check["name"] for check in va.evaluate(report) if not check["passed"]]
+    if failed == ["saved-field flow rate"]:
+        print("PASS  inconsistent saved-field flow despite valid native flux")
+    else:
+        failures.append(f"saved-field flow gate: unexpected failures {failed}")
+
     if failures:
         print(f"\n{len(failures)} guard test(s) failed")
         return 1

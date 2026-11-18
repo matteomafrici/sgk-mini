@@ -57,7 +57,9 @@ Reported separately, never merged:
    assumed annulus.
 4. `A_mesh_sector`: from the same cell volumes.
 
-Acceptance: `|imbalance| < 1e-6` and `|Q_full - Q| / Q < 0.05 %`.
+Acceptance: `|imbalance| < 1e-6`. Both full-circle flows, from the
+native patch flux and from the saved velocity field, must be within 0.05 %
+of the prescribed flow.
 
 ## Analytical comparison coordinates
 
@@ -82,7 +84,9 @@ Reaching `endTime` is not convergence. A run is `converged` only if all of:
 2. the transverse velocity is negligible in absolute terms,
    `max|Uy, Uz| / Umax < 1e-6` (their normalised residuals are unusable, because
    they normalise a field that is near zero);
-3. the global continuity error is below `1e-6` of the inlet flux;
+3. the equivalent sector flux error is below `1e-6` of the inlet flux.
+   Convert the OpenFOAM global continuity diagnostic to m³/s by multiplying
+   by the sector volume and dividing by the solver time step;
 4. the observables are stable: `dp/dx`, `Q_in` and `Umax` change by less than
    `1e-5` relative between the last two saved times.
 
