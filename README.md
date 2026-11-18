@@ -44,6 +44,8 @@ part is reconstructed with the solver's own gradient):
 - `scripts/voxel_resolution_curve.py` — measures the geometry stage at several
   voxel sizes (time, memory, volume convergence) and writes
   `validation/voxel-resolution-curve.md`.
+- `docs/dataset-pipeline.md` — the plan for the dataset stage: pieces, acceptance
+  criteria, failure policy, open decisions.
 - `cases/` — local, exploratory OpenFOAM cases and historical scripts used
   while developing the validation. Kept locally, outside the repository.
 
