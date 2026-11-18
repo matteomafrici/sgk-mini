@@ -10,6 +10,9 @@ int nExitCode = 0;
 
 try
 {
+    if (args.Length > 0 && args[0] == "--sample-vdb")
+        return VdbSampling.Run(args);
+
     HollowCylinderConfig oConfig = HollowCylinderConfig.FromArgs(args);
     bool bAutoExit = args.Contains("--auto-exit", StringComparer.Ordinal);
 

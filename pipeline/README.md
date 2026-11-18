@@ -85,3 +85,33 @@ recorded voxel schedule, and publishes an index after each completed physical
 point. Re-running the command resumes the same manifest and verifies hashes
 before reusing a published attempt. A solver rejection is retained for
 diagnosis. Only index entries with status `ok` are eligible as labels.
+
+If the original run needs the recorded edge-case recovery, resume it with
+`--recovery pipeline/batch-recovery-v1.json`. The base manifest and existing
+attempts stay in the dataset root. The recovery file records why a finer
+geometry or a repeated reference run was requested. A later resume reuses the
+same recovery plan from the dataset root.
+
+## One-case conversion probe
+
+Build the geometry program, then convert an accepted training case:
+
+```bash
+dotnet build src/SGK.Geometry/ -c Debug
+~/data/venvs/sgk-mini/bin/python pipeline/convert_annulus.py \
+  --root ~/data/datasets/sgk-mini/annulus-v1 \
+  --case ann-7939f294 \
+  --out ~/data/datasets/sgk-mini/annulus-v1/converter-reproduction
+```
+
+PicoGK reloads the accepted VDB and extracts surface vertices and a signed
+distance sampled on nearby voxels. The distance is in millimetres and clipped
+to one voxel. The converter exports SI arrays with the PicoGK axis convention,
+native OpenFOAM cell weights, and separate periodic pressure and applied
+pressure-gradient targets. Negative signed distance denotes VDB material.
+The annulus benchmark uses that geometry's extent for its fluid domain.
+
+This is a conversion probe. Its output grid and point density have not been
+chosen for training. The native CFD field is kept at its original centres,
+with axis remapping and units checked before comparing the saved array's
+flow to the validated reference integral.
