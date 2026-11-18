@@ -1,8 +1,8 @@
 # Annulus pilot — findings and handoff
 
-Branch `codex/validation-repair-pilot`, HEAD `e66be2f` at the time of writing.
-The audited baseline was `7ff4db0`; no intervening change existed before this
-branch started.
+Branch `codex/validation-repair-pilot`. The audited baseline was `7ff4db0`; no
+intervening change existed before this branch started. The commits are listed by
+`git log codex/validation-repair-pilot`.
 
 This report is the English companion to the Italian completion message. It
 records what was measured, not only what was built.

@@ -22,8 +22,9 @@ momentumSource
     selectionMode   all;
     fields          (U);
 
-    // Must match MeanVelocityMPerS in output/hollow-cylinder.physical-case.json.
-    // validate_annulus.py --check-inputs compares them and refuses to run if they
-    // drift, because a stale value here silently biases every comparison.
+    // Must match MeanVelocityMPerS in the physical record passed to
+    // run_annulus.sh (--benchmark). validate_annulus.py --check-inputs compares
+    // them and refuses to run if they drift, because a stale value here
+    // silently biases every comparison.
     Ubar            (0.00883932269380431 0 0);
 }

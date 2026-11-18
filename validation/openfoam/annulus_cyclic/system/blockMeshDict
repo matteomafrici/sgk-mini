@@ -25,9 +25,9 @@ FoamFile
 
 halfAngle   1;
 
-// Must match output/hollow-cylinder.physical-case.json (reconstructed radii).
+// Must match the physical record passed to run_annulus.sh (--benchmark).
 // validate_annulus.py checks these, the length, the viscosity and the full
-// imposed velocity vector against the record before the mesh is built.
+// imposed velocity vector against that record before the mesh is built.
 Ri          0.007999341770415122;
 Ro          0.010000006675720215;
 L           0.05;
