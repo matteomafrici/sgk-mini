@@ -21,6 +21,7 @@ import re
 import shutil
 import subprocess
 import sys
+import tempfile
 import time
 
 REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -244,6 +245,14 @@ def geometry_checks(request, features, physical):
 
     add("record is laminar", physical["ReynoldsNumber"] < 2000.0,
         f"Re={physical['ReynoldsNumber']:.2f}")
+    reconstructed_gap = physical["OuterRadiusMm"] - physical["InnerRadiusMm"]
+    min_gap = 3.0 * request.voxel_size_mm
+    add("reconstructed gap spans at least three voxels",
+        reconstructed_gap >= min_gap - 1e-12,
+        f"{reconstructed_gap:.6f} mm vs {min_gap:.6f} mm")
+    add("reconstructed inner radius spans at least three voxels",
+        physical["InnerRadiusMm"] >= min_gap - 1e-12,
+        f"{physical['InnerRadiusMm']:.6f} mm vs {min_gap:.6f} mm")
 
     return checks
 
@@ -265,9 +274,6 @@ def prepare_openfoam_case(request, physical, case_dir):
     boundary condition types are the ones the reference validation certified.
     """
     case_out = os.path.join(case_dir, "openfoam")
-    if os.path.isdir(case_out):
-        shutil.rmtree(case_out)
-
     for sub in ("system", "constant", "0"):
         shutil.copytree(
             os.path.join(REFERENCE_CASE, sub),
@@ -405,6 +411,7 @@ def provenance():
         "platform": platform.platform(),
         "git_commit": git_commit,
         "git_dirty": bool(git_dirty),
+        "geometry_assembly_sha256": sha256(DLL),
         "dotnet_version": command("dotnet", "--version"),
         "openfoam_version": foam_version,
         "python_version": sys.version.split()[0],
@@ -472,55 +479,62 @@ def assemble(case_dir, request, features, physical, features_path, physical_path
     return record
 
 
+def write_json(path, value):
+    """Publish a complete JSON file even if another reader is active."""
+    with tempfile.NamedTemporaryFile(
+        mode="w", dir=os.path.dirname(path), delete=False,
+    ) as stream:
+        temporary = stream.name
+        json.dump(value, stream, indent=2)
+    os.replace(temporary, path)
+
+
 def run_case(request, root=DATASET_ROOT):
     """Run one requested case end to end and return its dataset record.
 
     Every failure path still writes a record with the reason and whatever
     artifacts were produced. Nothing is deleted to make the dataset look clean.
     """
-    case_dir = os.path.join(root, request.case_id)
-    os.makedirs(case_dir, exist_ok=True)
+    attempts = os.path.join(root, request.case_id, "attempts")
+    os.makedirs(attempts, exist_ok=True)
+    case_dir = tempfile.mkdtemp(prefix="run-", dir=attempts)
+    record_path = os.path.join(case_dir, "dataset-record.json")
 
-    with open(os.path.join(case_dir, "case-request.json"), "w") as f:
-        json.dump(request.as_dict(), f, indent=2)
+    write_json(os.path.join(case_dir, "case-request.json"), request.as_dict())
+    # Preserve the exact tracked edits used by a dirty run alongside its commit.
+    with open(os.path.join(case_dir, "source.patch"), "wb") as patch:
+        subprocess.run(
+            ["git", "-C", REPO, "diff", "--binary", "HEAD", "--", "src", "pipeline", "validation"],
+            stdout=patch, check=True,
+        )
 
+    stage = "geometry"
     try:
+        problems = admissibility(request)
+        if problems:
+            raise ValueError("; ".join(problems))
         features, physical, features_path, physical_path, vdb_path = run_geometry(request, case_dir)
+        geometry_checks_list = geometry_checks(request, features, physical)
+        stage = "reference"
+        prepare_openfoam_case(request, physical, case_dir)
+        returncode, report, _, validation_path = run_reference(case_dir, physical_path)
+        record = assemble(
+            case_dir, request, features, physical, features_path, physical_path,
+            vdb_path, geometry_checks_list, returncode, report, validation_path,
+        )
     except Exception as exc:
         record = {
             "schema": SCHEMA,
             "case_id": request.case_id,
             "status": "failed",
-            "failure_reason": f"geometry: {exc}",
+            "failure_reason": f"{stage}: {exc}",
             "request": request.as_dict(),
             "geometry": None,
             "reference": None,
             "artifacts": _artifact_manifest(case_dir, exclude={"dataset-record.json"}),
             "provenance": provenance(),
         }
-        with open(os.path.join(case_dir, "dataset-record.json"), "w") as f:
-            json.dump(record, f, indent=2)
-        return record
-
-    geometry_checks_list = geometry_checks(request, features, physical)
-
-    prepare_openfoam_case(request, physical, case_dir)
-
-    # The preflight is run inside run_annulus.sh before blockMesh. If the
-    # generated dictionaries and the record disagree, the solver never starts.
-    returncode, report, _, validation_path = run_reference(case_dir, physical_path)
-
-    record = assemble(
-        case_dir, request, features, physical, features_path, physical_path,
-        vdb_path, geometry_checks_list, returncode, report, validation_path,
-    )
-
-    with open(os.path.join(case_dir, "dataset-record.json"), "w") as f:
-        json.dump(record, f, indent=2)
-
-    with open(os.path.join(root, "index.json"), "w") as f:
-        json.dump(index_entries(root), f, indent=2)
-
+    write_json(record_path, record)
     return record
 
 
@@ -528,9 +542,20 @@ def index_entries(root):
     entries = []
     for name in sorted(os.listdir(root)):
         case_dir = os.path.join(root, name)
-        record_path = os.path.join(case_dir, "dataset-record.json")
-        if not os.path.isfile(record_path):
+        history = [os.path.join(case_dir, "dataset-record.json")]
+        attempts = os.path.join(case_dir, "attempts")
+        if os.path.isdir(attempts):
+            history.extend(
+                os.path.join(attempts, attempt, "dataset-record.json")
+                for attempt in os.listdir(attempts)
+            )
+        history = sorted(
+            (path for path in history if os.path.isfile(path)),
+            key=lambda path: (os.stat(path).st_mtime_ns, path),
+        )
+        if not history:
             continue
+        record_path = history[-1]
         with open(record_path) as f:
             record = json.load(f)
         reference = record.get("reference") or {}
@@ -551,6 +576,7 @@ def index_entries(root):
             "dpL_error_pct": report.get("dpL_err_pct"),
             "profile_mean_pct": (report.get("profile") or {}).get("mean_pct"),
             "profile_max_pct": (report.get("profile") or {}).get("max_pct"),
-            "record": os.path.join(case_dir, "dataset-record.json"),
+            "record": record_path,
+            "attempt_records": history,
         })
     return entries

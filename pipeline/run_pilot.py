@@ -10,6 +10,7 @@ Usage:
 """
 
 import argparse
+import fcntl
 import json
 import os
 import subprocess
@@ -22,6 +23,7 @@ from annulus_case import (  # noqa: E402
     Request,
     index_entries,
     run_case,
+    write_json,
 )
 
 REPORTS = os.path.join(REPO, "pipeline", "reports")
@@ -40,11 +42,10 @@ def build():
         raise SystemExit("dotnet build failed")
 
 
-def write_report(entries, design):
-    os.makedirs(REPORTS, exist_ok=True)
+def write_report(entries, design, reports):
+    os.makedirs(reports, exist_ok=True)
 
-    with open(os.path.join(REPORTS, "pilot-index.json"), "w") as f:
-        json.dump(entries, f, indent=2)
+    write_json(os.path.join(reports, "pilot-index.json"), entries)
 
     lines = [
         "# Annulus pilot — case table",
@@ -100,7 +101,7 @@ def write_report(entries, design):
         for entry in failed:
             lines.append(f"- {entry['case_id']}: {entry['failure_reason']}")
 
-    with open(os.path.join(REPORTS, "pilot-table.md"), "w") as f:
+    with open(os.path.join(reports, "pilot-table.md"), "w") as f:
         f.write("\n".join(lines) + "\n")
 
 
@@ -108,6 +109,7 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--cases", default=os.path.join(REPO, "pipeline", "pilot-cases.json"))
     parser.add_argument("--root", default=DATASET_ROOT)
+    parser.add_argument("--reports", default=REPORTS)
     parser.add_argument("--only", default=None)
     args = parser.parse_args()
 
@@ -150,13 +152,18 @@ def main():
 
     # Merge with cases already on disk, so a single-case retry does not erase
     # the rest of the index.
-    all_entries = index_entries(args.root)
-    write_report(all_entries, design)
+    with open(os.path.join(args.root, ".index.lock"), "a") as lock:
+        fcntl.flock(lock, fcntl.LOCK_EX)
+        all_entries = index_entries(args.root)
+        write_json(os.path.join(args.root, "index.json"), all_entries)
+        design_ids = {case["case_id"] for case in design["cases"]}
+        design_entries = [entry for entry in all_entries if entry["case_id"] in design_ids]
+        write_report(design_entries, design, args.reports)
 
     print(f"\nindex: {os.path.join(args.root, 'index.json')}")
-    print(f"table: {os.path.join(REPORTS, 'pilot-table.md')}")
+    print(f"table: {os.path.join(args.reports, 'pilot-table.md')}")
 
-    return 0 if all(entry["status"] == "ok" for entry in all_entries) else 1
+    return 0 if all(entry["status"] == "ok" for entry in entries) else 1
 
 
 if __name__ == "__main__":
