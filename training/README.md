@@ -34,3 +34,16 @@ CUDA can be selected with `--device cuda`. The program checks availability.
 For the parameter MLP, CPU avoids small-dispatch accelerators' overhead.
 Benchmark a short run before estimating the spatial models. Count time for
 data mapping, training and inference separately.
+
+## First measurements
+
+The first one-case smoke experiment at `c6604f0` completed 300 epochs in
+4.72 s of trainer wall time on CPU. It passed all screening gates on the
+reconstructed training case, including 0.5653% field error versus CFD and
+0.2183% integrated-flow error. Its receipt is in the dataset's
+`runs/mlp-smoke-20261118T223048008723Z/` directory.
+
+A separate 30-epoch timing run on all training and validation cases took
+1.25 s of trainer wall time. It used a temporary run directory. The full
+baseline still needs its own run and validation review. The test and
+stress splits remained unopened in both experiments.

@@ -15,7 +15,7 @@ training aggregation, validation and testing.
 | FNO supervised | Exercise geometry on a regular grid and map its field back to the same native queries | First verify the grid-to-field transfer independently. Compare the same validation cases and metrics |
 | GINO supervised | Exercise VDB surface samples, signed distances and arbitrary query locations | Start with one-case reconstruction. Keep the same splits, physical scales, and metrics as the baselines |
 | Optional PINO comparison | Measure the effect of physics losses | Match the architecture, split, and compute budget to the supervised experiment. Check residuals against the exact solution before using them |
-| Frozen model evaluation | Measure performance on unseen geometries and stress points | Evaluate the frozen checkpoint. Report individual cases rather than just an aggregate |
+| Frozen model evaluation | Measure performance on unseen geometries and stress points | Lock model and selection decisions before evaluation. Report each case |
 
 The MLP consumes the reconstructed radius ratio and the corrected radial
 coordinate normalized across the gap. Operating conditions enter through

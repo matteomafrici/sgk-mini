@@ -279,8 +279,12 @@ def fit(args, data, device):
 def held_out(args, data, device):
     run_dir = args.run.resolve()
     receipt = read(run_dir / "run.json")
-    if receipt["status"] != "eligible_for_test" or receipt["dataset_index_sha256"] != data.digest:
+    if (receipt["stage"] != "mlp" or receipt["status"] != "eligible_for_test"
+            or receipt["dataset_index_sha256"] != data.digest):
         raise ValueError("held-out evaluation needs a qualified supervised run on this dataset")
+    output = run_dir / "held-out.json"
+    if output.exists():
+        raise ValueError(f"evaluation already published at {output}")
     checkpoint = checked_path(run_dir, "checkpoint.pt", receipt["checkpoint_sha256"])
     validation = checked_path(run_dir, "validation.json", receipt["validation_sha256"])
     if not read(validation)["passed"]:
@@ -288,13 +292,10 @@ def held_out(args, data, device):
     model = ParameterMLP().to(device)
     model.load_state_dict(torch.load(checkpoint, map_location=device, weights_only=True))
     _, results = evaluate(model, data.cases({"test", "edge"}))
-    output = run_dir / "held-out.json"
-    if output.exists():
-        raise ValueError(f"evaluation already published at {output}")
     write_json(str(output), {"checkpoint_sha256": receipt["checkpoint_sha256"],
-                             "limits_pct": LIMITS, "cases": results})
+                             "limits_pct": LIMITS, "passed": passed(results), "cases": results})
     print(output)
-    return 0
+    return int(not passed(results))
 
 
 def main():
