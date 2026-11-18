@@ -166,6 +166,15 @@ def main():
     finally:
         shutil.rmtree(tmp, ignore_errors=True)
 
+    # A single axial station may straddle a decimal rounding boundary.
+    centres, station = va.structured_axis(
+        va.np.array([0.00100000049, 0.002, 0.00100000051, 0.002]), 2, 2
+    )
+    if list(station) == [0, 1, 0, 1] and len(centres) == 2:
+        print("PASS  nearby rounded centres belong to one geometric station")
+    else:
+        failures.append("centre roundoff split one geometric station")
+
     with open(os.path.join(CASE, "validation.json")) as stream:
         report = json.load(stream)["report"]
     # The golden report predates the dimensionally converted continuity metric.

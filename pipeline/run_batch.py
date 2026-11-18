@@ -26,20 +26,25 @@ def verify_record(path, request):
     return record
 
 
-def solve_point(point, root, voxel_trials):
+def solve_point(point, root, voxel_trials, recovery):
     attempts = []
-    for voxel in voxel_trials:
+    for voxel in voxel_trials + recovery.get("extra_voxel_trials_mm", []):
         request = Request.from_dict(point | {"voxel_size_mm": voxel})
-        paths = sorted(
-            (root / request.case_id / "attempts").glob("*/dataset-record.json"),
-            key=lambda path: (path.stat().st_mtime_ns, path),
-        )
+
+        def records():
+            return sorted((root / request.case_id / "attempts").glob("*/dataset-record.json"),
+                          key=lambda path: (path.stat().st_mtime_ns, path))
+
+        paths = records()
         if not paths:
             run_case(request, str(root), require_geometry=True)
-            paths = list((root / request.case_id / "attempts").glob("*/dataset-record.json"))
-            if len(paths) != 1:
-                raise ValueError(f"{request.case_id}: expected a single new attempt")
+            paths = records()
         record = verify_record(paths[-1], request)
+        retry = recovery.get("retry_reference_if")
+        if len(paths) == 1 and retry and record["failure_reason"] == retry:
+            run_case(request, str(root), require_geometry=True)
+            paths = records()
+            record = verify_record(paths[-1], request)
         attempts.extend(str(path.relative_to(root)) for path in paths)
         geometry = record.get("geometry")
         reference = record.get("reference")
@@ -67,6 +72,7 @@ def main():
                         default=Path(REPO) / "pipeline/batch-cases-v1.json")
     parser.add_argument("--root", type=Path, default=Path(DATASET_ROOT) / "annulus-v1")
     parser.add_argument("--jobs", type=int, default=6)
+    parser.add_argument("--recovery", type=Path, help="append a recorded case-specific recovery plan")
     args = parser.parse_args()
     if args.jobs < 1:
         parser.error("--jobs must be positive")
@@ -90,6 +96,20 @@ def main():
         if frozen.exists() and read_json(frozen) != manifest:
             parser.error("dataset root is already bound to a different manifest")
         write_json(str(frozen), manifest)
+        recovery_path = root / "recovery.json"
+        recovery = read_json(recovery_path) if recovery_path.exists() else {}
+        if args.recovery:
+            proposed = read_json(args.recovery)
+            if recovery and proposed != recovery:
+                parser.error("dataset root is already bound to a different recovery plan")
+            recovery = proposed
+            if set(recovery) - set(ids):
+                parser.error("recovery plan refers to cases outside the batch")
+            for action in recovery.values():
+                sizes = voxel_trials + action.get("extra_voxel_trials_mm", [])
+                if sorted(set(sizes), reverse=True) != sizes or min(sizes) <= 0:
+                    parser.error("recovery voxels must extend the decreasing schedule")
+            write_json(str(recovery_path), recovery)
         build()
 
         by_id = {
@@ -105,12 +125,16 @@ def main():
                 "schema": "sgk-mini.batch-index.v1",
                 "batch_id": manifest["batch_id"],
                 "manifest_sha256": sha256(frozen),
+                "recovery_sha256": sha256(recovery_path) if recovery else None,
                 "cases": list(by_id.values()),
             })
 
         publish()
         with ThreadPoolExecutor(max_workers=args.jobs) as executor:
-            futures = {executor.submit(solve_point, p, root, voxel_trials): p for p in points}
+            futures = {
+                executor.submit(solve_point, p, root, voxel_trials, recovery.get(p["case_id"], {})): p
+                for p in points
+            }
             for done, future in enumerate(as_completed(futures), 1):
                 point = futures[future]
                 case_id = point["case_id"]

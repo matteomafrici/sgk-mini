@@ -316,6 +316,23 @@ def U_analytical(r, Ri, Ro, dpL, mu):
     )
 
 
+def structured_axis(coordinates, stations, repeats):
+    """Group noisy centre coordinates into the declared mesh stations."""
+    if coordinates.size != stations * repeats:
+        raise ValueError("coordinate count does not match the declared structured axis")
+    order = np.argsort(coordinates)
+    groups = coordinates[order].reshape(stations, repeats)
+    # Cell centres are written with eight significant digits. Tolerate
+    # roundoff in the export, but keep different mesh stations far apart.
+    tolerance_m = 1e-8
+    centres = np.mean(groups, axis=1)
+    if np.any(np.ptp(groups, axis=1) > tolerance_m) or np.any(np.diff(centres) <= 2 * tolerance_m):
+        raise ValueError("coordinate groups do not form distinct mesh stations")
+    inverse = np.empty(len(order), dtype=int)
+    inverse[order] = np.repeat(np.arange(stations), repeats)
+    return centres, inverse
+
+
 def extract_profile(case_dir, time_name, meta, centres_time=None):
     """Return x[nX], r_face[nR], ux[nX, nR], p[nX, nR].
 
@@ -349,30 +366,25 @@ def extract_profile(case_dir, time_name, meta, centres_time=None):
     r_centre = np.hypot(C[:, 1], C[:, 2])
     angle = np.degrees(np.arctan2(C[:, 1], C[:, 2]))
 
-    angle_key = np.round(angle, 6)
-    angle0 = angle_key[np.argmin(np.abs(angle_key))]
-    layer = angle_key == angle0
-    if layer.sum() == 0:
-        raise SystemExit(f"{case_dir}: could not identify the central angular layer")
+    if meta["nAng"] == 1:
+        layer = np.full(len(C), True)
+    else:
+        angle_key = np.round(angle, 6)
+        angle0 = angle_key[np.argmin(np.abs(angle_key))]
+        layer = angle_key == angle0
 
-    x_key = np.round(x[layer], 9)
-    r_key = np.round(r_centre[layer], 9)
-    ux_layer = U[layer, 0]
-    p_layer = p_raw[layer]
-
-    x_unique, x_index = np.unique(x_key, return_inverse=True)
-    r_unique, r_index = np.unique(r_key, return_inverse=True)
-
-    if len(x_unique) * len(r_unique) != int(layer.sum()):
-        raise SystemExit(
-            f"{case_dir}: central layer does not form a complete x-r grid "
-            f"({len(x_unique)} x {len(r_unique)} != {int(layer.sum())})"
-        )
+    n_x = meta["nX"]
+    n_r = meta["nR1"] + meta["nR2"]
+    try:
+        x_unique, x_index = structured_axis(x[layer], n_x, n_r)
+        r_unique, r_index = structured_axis(r_centre[layer], n_r, n_x)
+    except ValueError as error:
+        raise SystemExit(f"{case_dir}: incomplete x-r grid: {error}") from error
 
     ux = np.full((len(x_unique), len(r_unique)), np.nan)
     p = np.full((len(x_unique), len(r_unique)), np.nan)
-    ux[x_index, r_index] = ux_layer
-    p[x_index, r_index] = p_layer
+    ux[x_index, r_index] = U[layer, 0]
+    p[x_index, r_index] = p_raw[layer]
 
     if not np.all(np.isfinite(ux)) or not np.all(np.isfinite(p)):
         raise SystemExit(f"{case_dir}: the x-r grid has missing or non-finite values")
