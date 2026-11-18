@@ -121,3 +121,20 @@ all 11 CFD cases in original order:
 The gates and data splits did not change after the experiment. No
 test or stress outputs were opened. Hold those splits for the planned frozen
 comparison after the spatial baselines have been evaluated on validation.
+
+## Meridional FNO
+
+The FNO stage uses the same case split, query weights and acceptance
+metrics as the MLP. It trains on the calibrated axial component in a
+meridional representation of the periodic wedge.
+
+```bash
+~/data/venvs/sgk-neuralop/bin/python training/train_fno.py grid-check
+~/data/venvs/sgk-neuralop/bin/python training/train_fno.py fno-smoke --device cuda
+~/data/venvs/sgk-neuralop/bin/python training/train_fno.py fno --device cuda
+```
+
+The first command measures the grid transfer alone. Each training entry
+point repeats the relevant transfer gate before updating weights. Only
+training and validation cases are read by this CLI. Run receipts identify
+the model, grid configuration and NeuralOperator version.

@@ -216,12 +216,16 @@ def measure(case, result):
     }
 
 
+def parameter_prediction(model, case):
+    return model(case.inputs)
+
+
 @torch.no_grad()
-def evaluate(model, cases):
+def evaluate(model, cases, predict=parameter_prediction):
     model.eval()
     results, losses = [], []
     for case in cases:
-        prediction = model(case.inputs)
+        prediction = predict(model, case)
         loss = float(objective(prediction, case))
         if not math.isfinite(loss):
             raise ValueError(f"{case.id}: nonfinite evaluation loss")
@@ -234,8 +238,9 @@ def passed(results):
     return all(row[key] < limit for row in results for key, limit in LIMITS.items())
 
 
-def fit(args, data, device):
-    smoke = args.stage == "mlp-smoke"
+def fit(args, data, device, *, model_factory=ParameterMLP,
+        model_name="Parameter MLP", predict=parameter_prediction, configuration=None):
+    smoke = args.stage.endswith("-smoke")
     training = data.cases({"train"}, args.case if smoke else None)
     if args.analytic_cases:
         training = data.analytical_cases(training, args.analytic_cases)
@@ -255,7 +260,7 @@ def fit(args, data, device):
     run_dir.mkdir(parents=True)
     started = time.perf_counter()
     receipt = {
-        "model": "Parameter MLP", "stage": args.stage, "status": "running",
+        "model": model_name, "stage": args.stage, "status": "running",
         "split": "reconstruction" if smoke else "validation",
         "started_at": utc(), "updated_at": utc(), "commit": commit,
         "command": " ".join(sys.argv), "device": str(device), "seed": args.seed,
@@ -269,10 +274,12 @@ def fit(args, data, device):
         "validation_cases": [case.id for case in validation],
         "gate_limits_pct": LIMITS,
     }
+    if configuration is not None:
+        receipt["configuration"] = configuration
     write_json(str(run_dir / "run.json"), receipt)
     print(run_dir, flush=True)
     try:
-        model = ParameterMLP().to(device)
+        model = model_factory().to(device)
         optimizer = torch.optim.Adam(model.parameters(), lr=0.003)
         order = np.random.default_rng(args.seed)
         def sample_indices():
@@ -288,13 +295,13 @@ def fit(args, data, device):
                 for _ in range(updates_per_epoch):
                     case = training[next(samples)]
                     optimizer.zero_grad(set_to_none=True)
-                    loss = objective(model(case.inputs), case)
+                    loss = objective(predict(model, case), case)
                     if not torch.isfinite(loss):
                         raise ValueError(f"{case.id}: nonfinite training loss")
                     loss.backward()
                     optimizer.step()
                     losses.append(float(loss.detach()))
-                val_loss, rows = evaluate(model, validation)
+                val_loss, rows = evaluate(model, validation, predict)
                 metrics.write(json.dumps({
                     "step": step, "train_loss": sum(losses) / len(losses), "validation_loss": val_loss,
                     "max_flow_error_pct": max(row["flow_pct"] for row in rows),

@@ -74,3 +74,23 @@ profiles at the CFD training ratios and 64 analytical profiles covering
 more of the same permitted ratio range. The analytical generator excludes
 all validation, test and stress bands. All comparisons score the same four
 CFD validation cases. Neither comparison opens the final splits.
+
+## Meridional FNO
+
+The baseline uses the current axisymmetric wedge, not a 3D field extrapolated
+around the circle. Use a 65 × 32 meridional grid in gap and axial coordinates,
+the VDB distance interpolated at the meridional plane, and the radius ratio.
+The native CFD field is mapped to and back from this grid as an independent
+verification. In the radial direction the transfer uses the two known zero
+wall values. In the axial direction it respects the periodic seam. Each
+training and validation case must have transfer errors below 0.2% field,
+0.3% wall and 0.1% integrated flow relative to the native data.
+
+For supervised training, evaluate the predicted grid at the original cell
+centres so the optimizer and the acceptance tests use the same native targets
+and weights as the parameter MLP. Keep the zero-wall envelope. Predict the
+positive gap-scaled driving gradient using the spatial mean of the separate
+log-gradient output. Use three Fourier layers, width 16 and eight modes per
+dimension. The first complete run uses 300 epochs and the existing seed and
+validation gates. The reconstruction step and both training stages leave test
+and stress cases closed.
