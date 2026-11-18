@@ -19,7 +19,7 @@ application     simpleFoam;
 startFrom       startTime;
 startTime       0;
 stopAt          endTime;
-endTime         2000;
+endTime         8000;
 deltaT          1;
 
 writeControl    timeStep;

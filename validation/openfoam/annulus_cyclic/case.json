@@ -1,0 +1,4 @@
+{
+  "CaseId": "hollow-cylinder",
+  "Note": "Identity of this OpenFOAM case. Generated dataset cases carry the same file; validate_annulus.py --check-inputs refuses a case whose id does not match the physical record."
+}

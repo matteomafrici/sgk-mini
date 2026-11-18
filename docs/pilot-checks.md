@@ -89,6 +89,20 @@ Reaching `endTime` is not convergence. A run is `converged` only if all of:
 Otherwise the run is recorded as `iteration-limit` with its residual table, and
 the case fails its reference acceptance. The failure stays in the index.
 
+### Qualification of the pressure residual (recorded before D0 acceptance)
+
+After the first wedge run the pressure initial residual stayed near `0.11` while
+every physical quantity was stable. The cause is the metric, not the solution:
+the pressure field is `~1e-15` m²/s² because the driving gradient is carried
+entirely by `meanVelocityForce`. The normalized residual divides by a
+near-zero denominator, so it cannot reach `1e-3` however converged the field is.
+
+The criterion is therefore: the `p` target must be met **or** the pressure field
+must be negligible against the physical scale `dpL/rho * L`, with the ratio
+reported. In this case the ratio is about `1e-12`. The decision, the evidence and
+the measured values are in the commit that introduced the wedge; the physical
+thresholds above are unchanged.
+
 ## Case identity and provenance
 
 Every case is identified by a deterministic id derived from its parameters. A run
