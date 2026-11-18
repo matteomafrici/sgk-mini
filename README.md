@@ -241,20 +241,22 @@ the flow-rate label carries only that measured defect.
 
 - The geometry is not yet consumed by the physics: the annular benchmark is
   reconstructed from scalar features (bbox + volume), not from the voxel field,
-  and the CFD case is a hand-built annulus. The geometry→physics coupling is
+  and the CFD case is built from those scalars. The geometry→physics coupling is
   currently nominal.
-- A dataset generator. The geometry is parameterizable, but nothing yet samples
-  that parameterization into a dataset.
-- A small (geometry, CFD field) dataset.
+- The full dataset. An eight-case pilot pipeline exists (`pipeline/`) and was
+  run to completion with four passing and four failing cases; the batch has not
+  been generated.
 - A first tiny surrogate (PhysicsNeMo), with its inference accuracy and speed
   measured against the analytical and CFD ground truth.
 - A minimal Layer 3 optimization loop.
 
 ## Planned: dataset and surrogate validation
 
-Everything below is **planned, not implemented**. It exists here so the target is
-written down before the work starts, and so the acceptance criteria cannot be
-chosen after seeing the results.
+Everything below is **planned, not implemented**, except where it points to the
+pilot report. It exists here so the target is written down before the work
+starts, and so the acceptance criteria cannot be chosen after seeing the results.
+The eight-case pilot exercised the geometry, reference, record and quality pieces
+and is reported in `pipeline/reports/pilot-report.md`.
 
 ### What is being validated
 
@@ -269,7 +271,7 @@ is a claim, not a capability.
 | 4 | model → physics | errors on engineering quantities and on the field, on geometries held out of training, reported alongside the loss |
 | 5 | model → search | every selected candidate is recomputed with the reference solver; predicted versus reference is reported |
 | 6 | geometry → printable artifact | watertight solid, declared minimum wall and channel respected, voxel resolution sufficient for the features claimed |
-| 7 | results → conclusions | the metrics are read against written criteria, and the irreducible error of the reference (about 3.6% near the wall) is separated from model error |
+| 7 | results → conclusions | the metrics are read against written criteria, and the remaining reference error (measured at 0.005 % mean / 0.007 % max on the profile after correcting the comparison radius) is separated from model error |
 
 ### Target and baselines
 

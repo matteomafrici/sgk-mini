@@ -133,6 +133,39 @@ def main():
     finally:
         shutil.rmtree(tmp, ignore_errors=True)
 
+    # A field left over from another mesh must be rejected. This is the stale
+    # artifact case: the latest time directory is not evidence that it belongs
+    # to the case in the dictionaries.
+    tmp = tempfile.mkdtemp(prefix="sgk-guard-")
+    try:
+        os.makedirs(os.path.join(tmp, "1000"))
+        with open(os.path.join(tmp, "1000", "C"), "w") as f:
+            f.write(
+                "FoamFile { class volVectorField; }\n"
+                "internalField nonuniform List<vector> 2\n(\n(0 0 0.009)\n(0 0 0.0095)\n)\n;\n"
+            )
+        with open(os.path.join(tmp, "1000", "U"), "w") as f:
+            f.write(
+                "FoamFile { class volVectorField; }\n"
+                "internalField nonuniform List<vector> 2\n(\n(1 0 0)\n(1 0 0)\n)\n;\n"
+            )
+        with open(os.path.join(tmp, "1000", "p"), "w") as f:
+            f.write(
+                "FoamFile { class volScalarField; }\n"
+                "internalField nonuniform List<scalar> 2\n(\n0\n0\n)\n;\n"
+            )
+        meta, _ = va.check_inputs(CASE, BENCH, verbose=False)
+        try:
+            va.extract_profile(tmp, "1000", meta)
+        except SystemExit as exc:
+            print(f"PASS  stale field with the wrong cell count: "
+                  f"{str(exc).strip().splitlines()[0]}")
+        else:
+            failures.append("stale field: accepted a field from another mesh")
+            print("FAIL  stale field: accepted a field from another mesh")
+    finally:
+        shutil.rmtree(tmp, ignore_errors=True)
+
     if failures:
         print(f"\n{len(failures)} guard test(s) failed")
         return 1

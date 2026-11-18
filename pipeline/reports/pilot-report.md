@@ -160,6 +160,7 @@ The production formula is verified by a method that is not itself.
 | swapped case identity | rejected |
 | NaN velocity field | rejected |
 | missing cell volumes | rejected |
+| stale field from another mesh | rejected |
 
 The preflight runs before `blockMesh`; a drifted case cannot reach the solver.
 

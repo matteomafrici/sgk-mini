@@ -49,7 +49,8 @@ reviewer can see what was claimed and what was measured.
 ## Verification
 
 - [x] `validation/test_guards.py`: wrong Ri, wrong L, wrong axial Ubar,
-      transverse Ubar, wrong nu, swapped case id, NaN field, missing volumes.
+      transverse Ubar, wrong nu, swapped case id, NaN field, missing volumes,
+      stale field from another mesh.
 - [x] Independent analytical reference by finite-difference radial momentum
       (temporary script, not committed): worst relative difference 6.3e-7.
 - [x] `scripts/check_analytic.py` and `--with-cfd` run.
