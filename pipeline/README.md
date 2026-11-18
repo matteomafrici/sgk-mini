@@ -7,9 +7,12 @@ annular case is an instance, not a framework.
 
 - `annulus_case.py` — the annular case model: request, admissibility, geometry
   configuration, OpenFOAM case generation, reference run, dataset record.
-- `sample_cases.py` — LHS design, feasibility filter, maximin selection.
+- `sample_cases.py` — complete Latin hypercube designs, screened for feasibility
+  and selected by minimum pairwise distance.
 - `run_pilot.py` — orchestration and the compact report table.
-- `pilot-cases.json` — the committed design (seed, bounds, cases).
+- `pilot-cases.json` — the historical eight-case design and its original results.
+- `pilot-cases-lhs.json` — the follow-up design with eight points and one point
+  per stratum in each dimension.
 - `reports/` — compact, committed results; the data itself is elsewhere.
 
 ## Data layout
@@ -17,7 +20,7 @@ annular case is an instance, not a framework.
 Generated data lives outside the repository, in `~/data/datasets/sgk-mini/`:
 
 ```
-<case-id>/
+<case-id>/attempts/<run-id>/
   case-request.json          requested parameters
   geometry-config.json       exact config passed to SGK.Geometry
   log.geometry               geometry stage stdout/stderr
@@ -27,11 +30,14 @@ Generated data lives outside the repository, in `~/data/datasets/sgk-mini/`:
     <case-id>.physical-case.json
   openfoam/                  generated case, dictionaries, logs, fields
   log.reference              full run_annulus.sh output
+  source.patch               tracked source changes against the recorded commit
   dataset-record.json        request, records, checks, hashes, provenance
 ```
 
-`index.json` at the dataset root summarises every case that has a record.
-A failed case keeps its record and whatever artifacts it produced.
+`index.json` at the dataset root summarises the latest published attempt per case
+and links all previous records, including records from the original layout.
+Each attempt keeps its artifacts and failures. The record includes an assembly
+hash and the source patch captures tracked edits for runs with local changes.
 
 ## Run
 
@@ -41,6 +47,9 @@ dotnet build src/SGK.Geometry/ -c Debug
 ~/data/venvs/sgk-mini/bin/python pipeline/run_pilot.py
 ~/data/venvs/sgk-mini/bin/python pipeline/run_pilot.py --only ann-XXXXXXXX
 ```
+
+Use `--cases pipeline/pilot-cases-lhs.json` to run the follow-up design.
+Use `--reports` to select a distinct report directory when comparing designs.
 
 The pilot stops after the eight requested cases. Nothing trains a model and
 nothing generates the full batch.
