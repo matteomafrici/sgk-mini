@@ -21,10 +21,13 @@ Use this note to resume the mini.
   including the native runtime crash at 0.05 mm, remain indexed.
   The batch runner applies a declared voxel recovery schedule and validates
   geometry before starting OpenFOAM.
-- A VDB-to-CFD-array conversion probe passed on one accepted training case.
-  Batch-wide tensor preparation, model normalization, training, search and
-  the AI interface remain open. The CFD mesh is built from reconstructed
-  dimensions. General VDB-to-CFD meshing remains open.
+- All 20 cases have converted VDB surface and signed-distance inputs, native
+  CFD targets and weights in the PicoGK frame, and recorded physical scales.
+  The model-input index is under
+  `~/data/datasets/sgk-mini/annulus-v1/model-inputs-v1/`. The audit matched
+  case identity and split, verified hashes and normalization round trips,
+  and reproduced saved-field flow on every case. Training, search and the
+  AI interface remain open. CFD still uses reconstructed annulus dimensions.
 - See the [batch report](../pipeline/reports/batch-v1.md) for the outcome,
   evidence and data paths.
 - The eight executed inputs are in
@@ -64,14 +67,13 @@ and a stated calibration and uncertainty model.
 
 ## Next steps
 
-1. Choose the training representation from the accepted case artifacts.
-   Keep the frozen `Ri/Ro` split. The current 20 labels are the budget for a
-   first learning curve.
-2. Extend the conversion probe across accepted cases and test the narrowest
-   resolved geometries. Decide the grid, point sampling and normalization.
-   Preserve alignment, wall positions and flow through the prepared labels.
-3. Define field, wall, integrated flow and driving-gradient acceptance before
-   training. Keep periodic pressure and pressure gradient as distinct outputs.
+1. Define field, wall, integrated flow and driving-gradient acceptance
+   before training. Keep periodic pressure and the driving gradient distinct.
+2. Read the prepared arrays without recomputing the split. Group evaluation
+   by physical case. Use per-case volume weights when evaluating the field,
+   and apply and invert the recorded physical normalization.
+3. Define the model conditioning and surface sampling for the first
+   supervised experiment. Keep these transforms identical at inference.
 4. Train the simplest supervised controls and a small geometry-aware model.
    Check one-case reconstruction first, then held-out geometry, wall error,
    mass balance and the engineering quantities used by search.

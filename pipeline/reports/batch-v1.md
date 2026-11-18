@@ -87,3 +87,18 @@ the batch and the one-case probe.
 | ann-3d3194ee | train | 0.15 | 0.02031 / 0.02031 | 0.01479 | accepted |
 | ann-555ceb7e | train | 0.2 | 0.02031 / 0.02031 | 0.00872 | accepted |
 | ann-658eae93 | train | 0.2 | 0.02031 / 0.02031 | 0.05310 | accepted |
+
+## Batch-wide model input verification
+
+All 20 accepted cases were converted, including the 0.600822 mm gap edge
+case. The output index records 11 train, 4 validation, 3 test and 2 edge
+cases and links both array and metadata hashes. The independent audit
+checked all 40 hashes, 47,700 CFD query rows, finite values, positive cell
+weights, and the normalization round trip. It reproduced each saved-field
+flow integral. The largest error against the imposed flow was 0.020307%.
+
+The prepared geometry uses native VDB surface vertices and a clipped signed
+distance on a 192 × 192 × 16 grid. CFD velocities and volume weights are
+kept at their native samples. The array conversion does not establish
+prediction accuracy or train a model. See the
+[conversion commands](../README.md#prepared-model-inputs).

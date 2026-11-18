@@ -115,3 +115,35 @@ This is a conversion probe. Its output grid and point density have not been
 chosen for training. The native CFD field is kept at its original centres,
 with axis remapping and units checked before comparing the saved array's
 flow to the validated reference integral.
+
+## Prepared model inputs
+
+Convert the full accepted batch with the same executable:
+
+```bash
+dotnet build src/SGK.Geometry/ -c Debug
+~/data/venvs/sgk-mini/bin/python pipeline/convert_annulus.py \
+  --root ~/data/datasets/sgk-mini/annulus-v1 --all \
+  --out ~/data/datasets/sgk-mini/annulus-v1/model-inputs-v1
+```
+
+The source manifest supplies the frozen train, validation, test and edge
+splits. Geometry queries run serially through the PicoGK viewer. Each case
+publishes a compressed NumPy archive and metadata with its source record,
+hashes and scaling factors. A resume verifies existing outputs before
+publishing the complete index.
+
+The signed-distance grid has 192 × 192 transverse samples and 16 axial
+samples. The converter checks for at least three successive interior
+samples across both sides of the annulus on both transverse axes. Surface
+vertices and the signed-distance grid are inputs. CFD targets use the
+original cell locations and volumes in the PicoGK frame. This allows flow
+integration without using the coarser geometry grid as a quadrature rule.
+
+Arrays are stored in SI units. The metadata records the annulus midpoint
+as the coordinate origin, the reconstructed outer radius as length scale,
+the prescribed mean flow velocity as velocity scale, and
+`mu * Ubar / Ro^2` as the driving-gradient scale. Use these same transforms
+at training and inference. Keep periodic pressure and the scalar driving
+gradient separate. The source physical record contains the operating
+conditions. No weights or dataset statistics are fitted by conversion.

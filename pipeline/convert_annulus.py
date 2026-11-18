@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Probe the VDB and CFD conversion on one accepted annulus case."""
+"""Convert accepted VDB and CFD artifacts to aligned annulus arrays."""
 
 import argparse
 import json
@@ -11,14 +11,14 @@ import tempfile
 
 import numpy as np
 
-from annulus_case import DLL, REPO, Request, sha256
+from annulus_case import DLL, REPO, Request, sha256, write_json
 from run_batch import read_json, verify_record
 
 sys.path.insert(0, str(Path(REPO) / "validation"))
 from validate_annulus import read_field
 
 
-def convert(root, case_id, output, dll):
+def convert(root, case_id, output, dll, *, grid_shape=(48, 48, 32)):
     index = read_json(root / "index.json")
     if index["manifest_sha256"] != sha256(root / "manifest.json"):
         raise ValueError("batch index does not match the frozen manifest")
@@ -60,9 +60,9 @@ def convert(root, case_id, output, dll):
     ri = shape["InnerRadiusMm"]
     length = shape["LengthMm"]
     extent_mm = ro + 2 * voxel_mm
-    grid_mm = [np.linspace(-extent_mm, extent_mm, 48)] * 2 + [
-        np.linspace(-2 * voxel_mm, length + 2 * voxel_mm, 32),
-    ]
+    grid_mm = [
+        np.linspace(-extent_mm, extent_mm, n) for n in grid_shape[:2]
+    ] + [np.linspace(-2 * voxel_mm, length + 2 * voxel_mm, grid_shape[2])]
     lattice = np.stack(np.meshgrid(*grid_mm, indexing="ij"), axis=-1)
     outer_node = math.floor(ro / voxel_mm) * voxel_mm
     probes_mm = np.array([
@@ -111,13 +111,25 @@ def convert(root, case_id, output, dll):
     if not np.any(interior) or np.any(q_sdf_mm[interior] >= 0):
         raise ValueError("interior CFD centres do not align with the VDB material")
 
+    grid_sdf_mm = samples_mm[start + count:].reshape(lattice.shape[:3])
+    if grid_shape == BATCH_GRID:
+        # Require resolved material on both sides of the bore in a
+        # representative mid-length section, along both transverse axes.
+        mid_x, mid_y, mid_z = (n // 2 for n in grid_shape)
+        profiles = (grid_sdf_mm[:, mid_y, mid_z], grid_sdf_mm[mid_x, :, mid_z])
+        for profile in profiles:
+            left, right = np.split(profile < 0, 2)
+            for half in (left, right):
+                if not np.any(np.convolve(half, np.ones(3, dtype=int), mode="valid") == 3):
+                    raise ValueError("dense input grid misses three adjacent annular samples")
+
     output.mkdir(parents=True)
     arrays = output / "sample.npz"
     np.savez_compressed(
         arrays, query_xyz_m=xyz, velocity_m_s=u_xyz, volume_m3=volumes,
         pressure_periodic_pa=pressure * shape["DensityKgPerM3"],
         query_solid_sdf_m=q_sdf_mm * .001, surface_xyz_m=vertices_mm * .001,
-        grid_sdf_m=samples_mm[start + count:].reshape(lattice.shape[:3]) * .001,
+        grid_sdf_m=grid_sdf_mm * .001,
         grid_x_m=grid_mm[0] * .001, grid_y_m=grid_mm[1] * .001, grid_z_m=grid_mm[2] * .001,
         driving_gradient_pa_m=report["dpL_cfd"],
     )
@@ -150,22 +162,95 @@ def convert(root, case_id, output, dll):
         "interior_rows_checked": int(interior.sum()),
         "surface_points": len(vertices_mm),
         "grid_shape": list(lattice.shape[:3]),
+        "normalization": {
+            "origin_m": [0, 0, length * .0005],
+            "length_m": ro * .001,
+            "velocity_m_s": shape["MeanVelocityMPerS"],
+            "gradient_pa_m": (
+                shape["DynamicViscosityPaS"] * shape["MeanVelocityMPerS"] / (ro * .001)**2
+            ),
+        },
         "probe_values_mm": samples_mm[:start].tolist(),
         "full_circle_flow_m3_s": full_q,
         "flow_error_pct": flow_error_pct,
     }
     (output / "metadata.json").write_text(json.dumps(metadata, indent=2) + "\n")
-    print(json.dumps(metadata, indent=2))
+    return metadata
+
+
+BATCH_GRID = (192, 192, 16)
+
+
+def convert_batch(root, output, dll):
+    source_index = root / "index.json"
+    source_hash = sha256(source_index)
+    index = read_json(source_index)
+    manifest = read_json(root / "manifest.json")
+    if index["manifest_sha256"] != sha256(root / "manifest.json"):
+        raise ValueError("source index does not match the frozen manifest")
+    entries = {entry["physical_case_id"]: entry for entry in index["cases"]}
+    expected = {point["case_id"]: point["split"] for point in manifest["cases"]}
+    if ({case_id: entry["split"] for case_id, entry in entries.items()} != expected
+            or len(entries) != len(index["cases"])):
+        raise ValueError("source case identities or splits do not match the frozen manifest")
+    if any(entry["status"] != "ok" for entry in entries.values()):
+        raise ValueError("source batch has unaccepted or pending cases")
+
+    output.mkdir(parents=True, exist_ok=True)
+    dll_hash = sha256(dll)
+    rows = []
+    for case_id, entry in entries.items():
+        destination = output / case_id
+        record_path = root / entry["record"]
+        if destination.exists():
+            data = read_json(destination / "metadata.json")
+            if (data["source_record_sha256"] != sha256(record_path)
+                    or data["sampler_assembly_sha256"] != dll_hash
+                    or data["sample_sha256"] != sha256(destination / "sample.npz")
+                    or tuple(data["grid_shape"]) != BATCH_GRID
+                    or data["split"] != entry["split"]):
+                raise ValueError(f"{case_id}: existing conversion does not match its source")
+        else:
+            with tempfile.TemporaryDirectory(prefix=".convert-", dir=output) as pending:
+                candidate = Path(pending) / "sample"
+                data = convert(root, case_id, candidate, dll, grid_shape=BATCH_GRID)
+                candidate.rename(destination)
+        rows.append({
+            "case_id": case_id,
+            "split": data["split"],
+            "metadata": f"{case_id}/metadata.json",
+            "metadata_sha256": sha256(destination / "metadata.json"),
+            "arrays": f"{case_id}/sample.npz",
+            "arrays_sha256": data["sample_sha256"],
+            "flow_error_pct": data["flow_error_pct"],
+        })
+        print(f"[{len(rows)}/{len(entries)}] {case_id} {data['split']}: "
+              f"flow error {data['flow_error_pct']:.6f}%", flush=True)
+
+    if sha256(source_index) != source_hash:
+        raise ValueError("source index changed during conversion")
+    write_json(str(output / "index.json"), {
+        "schema": "sgk-mini.annulus-arrays.v1",
+        "source_index_sha256": source_hash,
+        "grid_shape": list(BATCH_GRID),
+        "cases": rows,
+    })
 
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--root", type=Path, required=True)
-    parser.add_argument("--case", required=True, help="physical case ID in the batch manifest")
+    mode = parser.add_mutually_exclusive_group(required=True)
+    mode.add_argument("--case", help="physical case ID for the smaller conversion probe")
+    mode.add_argument("--all", action="store_true", help="prepare every accepted case")
     parser.add_argument("--out", type=Path, required=True)
     parser.add_argument("--dll", type=Path, default=Path(DLL))
     args = parser.parse_args()
-    convert(args.root.resolve(), args.case, args.out.resolve(), args.dll.resolve())
+    root, output, dll = args.root.resolve(), args.out.resolve(), args.dll.resolve()
+    if args.all:
+        convert_batch(root, output, dll)
+    else:
+        print(json.dumps(convert(root, args.case, output, dll), indent=2))
 
 
 if __name__ == "__main__":

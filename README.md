@@ -251,10 +251,10 @@ dataset or model work.
   reconstructed from scalar features (bbox + volume), not from the voxel field,
   and the CFD case is built from those scalars. The geometry→physics coupling is
   currently nominal.
-- Training preparation across the full dataset. The initial CFD batch
-  produced 20 accepted labels from 20 physical points. The conversion
-  probe passed on one case and has yet to be applied across the batch.
-  See the [batch report](pipeline/reports/batch-v1.md).
+- Layer 2 training and evaluation. The CFD batch has 20 accepted cases.
+  All 20 have geometry and CFD arrays prepared in a common frame with
+  recorded normalization. See the [batch report](pipeline/reports/batch-v1.md)
+  and [conversion commands](pipeline/README.md#prepared-model-inputs).
 - A first tiny surrogate (PhysicsNeMo), with its inference accuracy and speed
   measured against the analytical and CFD ground truth.
 - A minimal Layer 3 optimization loop.
