@@ -20,120 +20,120 @@
     "entry-and-exit-effects-neglected"
   ],
   "LengthMm": 50,
-  "OuterRadiusMm": 9.997753143310547,
-  "InnerRadiusMm": 8.002998076523836,
-  "CrossSectionAreaMm2": 112.80544921875,
-  "RadiusRatio": 0.8004796639611579,
-  "MeanVelocityMPerS": 0.008864819979226541,
-  "ReynoldsNumber": 35.36628913942842,
-  "PressureGradientPaPerM": 26.71248632995074,
-  "PressureDropPa": 1.335624316497537,
-  "MaxVelocityMPerS": 0.013304525483081172,
-  "MaxVelocityRadiusMm": 8.98187513426429,
-  "SampledMaxVelocityMPerS": 0.013299957207618816,
-  "SampledMaxVelocityRadiusMm": 9.00037560991719,
-  "InnerWallShearStressPa": 0.027747385244837757,
-  "OuterWallShearStressPa": -0.025757942506533647,
+  "OuterRadiusMm": 10.000006675720215,
+  "InnerRadiusMm": 7.999341770415123,
+  "CrossSectionAreaMm2": 113.13083984375,
+  "RadiusRatio": 0.7999336430281931,
+  "MeanVelocityMPerS": 0.00883932269380431,
+  "ReynoldsNumber": 35.3690454003223,
+  "PressureGradientPaPerM": 26.478393665482095,
+  "PressureDropPa": 1.323919683274105,
+  "MaxVelocityMPerS": 0.013266303115273485,
+  "MaxVelocityRadiusMm": 8.98106202035568,
+  "SampledMaxVelocityMPerS": 0.013261720034188977,
+  "SampledMaxVelocityRadiusMm": 8.999674223067668,
+  "InnerWallShearStressPa": 0.02758945677383473,
+  "OuterWallShearStressPa": -0.025605461383432008,
   "VelocityProfileSamples": [
     {
       "SampleIndex": 0,
-      "RadiusMm": 8.002998076523836,
+      "RadiusMm": 7.999341770415122,
       "RadiusNormalized": 0,
       "AxialVelocityMPerS": -0
     },
     {
       "SampleIndex": 1,
-      "RadiusMm": 8.127670268198006,
+      "RadiusMm": 8.124383326996691,
       "RadiusNormalized": 0.0625,
-      "AxialVelocityMPerS": 0.0032261263148280306
+      "AxialVelocityMPerS": 0.003217209449013599
     },
     {
       "SampleIndex": 2,
-      "RadiusMm": 8.252342459872176,
+      "RadiusMm": 8.249424883578259,
       "RadiusNormalized": 0.125,
-      "AxialVelocityMPerS": 0.005991096957393998
+      "AxialVelocityMPerS": 0.0059744329303466
     },
     {
       "SampleIndex": 3,
-      "RadiusMm": 8.377014651546345,
+      "RadiusMm": 8.374466440159827,
       "RadiusNormalized": 0.1875,
-      "AxialVelocityMPerS": 0.008302516160242702
+      "AxialVelocityMPerS": 0.008279282518426112
     },
     {
       "SampleIndex": 4,
-      "RadiusMm": 8.501686843220513,
+      "RadiusMm": 8.499507996741396,
       "RadiusNormalized": 0.25,
-      "AxialVelocityMPerS": 0.010167651125174282
+      "AxialVelocityMPerS": 0.0101390318148662
     },
     {
       "SampleIndex": 5,
-      "RadiusMm": 8.626359034894685,
+      "RadiusMm": 8.624549553322964,
       "RadiusNormalized": 0.3125,
-      "AxialVelocityMPerS": 0.011593451650555283
+      "AxialVelocityMPerS": 0.01156063572277205
     },
     {
       "SampleIndex": 6,
-      "RadiusMm": 8.751031226568854,
+      "RadiusMm": 8.749591109904532,
       "RadiusNormalized": 0.375,
-      "AxialVelocityMPerS": 0.012586568350338764
+      "AxialVelocityMPerS": 0.012550748797739519
     },
     {
       "SampleIndex": 7,
-      "RadiusMm": 8.875703418243022,
+      "RadiusMm": 8.8746326664861,
       "RadiusNormalized": 0.4375,
-      "AxialVelocityMPerS": 0.013153369584337627
+      "AxialVelocityMPerS": 0.013115742296735676
     },
     {
       "SampleIndex": 8,
-      "RadiusMm": 9.00037560991719,
+      "RadiusMm": 8.999674223067668,
       "RadiusNormalized": 0.5,
-      "AxialVelocityMPerS": 0.013299957207618816
+      "AxialVelocityMPerS": 0.013261720034188977
     },
     {
       "SampleIndex": 9,
-      "RadiusMm": 9.125047801591363,
+      "RadiusMm": 9.124715779649236,
       "RadiusNormalized": 0.5625,
-      "AxialVelocityMPerS": 0.013032181236501057
+      "AxialVelocityMPerS": 0.01299453314404592
     },
     {
       "SampleIndex": 10,
-      "RadiusMm": 9.249719993265531,
+      "RadiusMm": 9.249757336230804,
       "RadiusNormalized": 0.625,
-      "AxialVelocityMPerS": 0.012355653519373537
+      "AxialVelocityMPerS": 0.012319793837148728
     },
     {
       "SampleIndex": 11,
-      "RadiusMm": 9.374392184939701,
+      "RadiusMm": 9.374798892812374,
       "RadiusNormalized": 0.6875,
-      "AxialVelocityMPerS": 0.011275760492288147
+      "AxialVelocityMPerS": 0.011242888234881602
     },
     {
       "SampleIndex": 12,
-      "RadiusMm": 9.49906437661387,
+      "RadiusMm": 9.499840449393941,
       "RadiusNormalized": 0.75,
-      "AxialVelocityMPerS": 0.009797675091881099
+      "AxialVelocityMPerS": 0.009768988352533555
     },
     {
       "SampleIndex": 13,
-      "RadiusMm": 9.62373656828804,
+      "RadiusMm": 9.62488200597551,
       "RadiusNormalized": 0.8125,
-      "AxialVelocityMPerS": 0.007926367891555567
+      "AxialVelocityMPerS": 0.007903063299091849
     },
     {
       "SampleIndex": 14,
-      "RadiusMm": 9.748408759962208,
+      "RadiusMm": 9.749923562557077,
       "RadiusNormalized": 0.875,
-      "AxialVelocityMPerS": 0.005666617520919273
+      "AxialVelocityMPerS": 0.0056498897541583755
     },
     {
       "SampleIndex": 15,
-      "RadiusMm": 9.873080951636378,
+      "RadiusMm": 9.874965119138647,
       "RadiusNormalized": 0.9375,
-      "AxialVelocityMPerS": 0.0030230204231294073
+      "AxialVelocityMPerS": 0.0030140617772661765
     },
     {
       "SampleIndex": 16,
-      "RadiusMm": 9.997753143310547,
+      "RadiusMm": 10.000006675720215,
       "RadiusNormalized": 1,
       "AxialVelocityMPerS": -0
     }

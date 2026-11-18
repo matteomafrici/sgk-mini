@@ -21,8 +21,11 @@ FoamFile
 // Total cells: 80×100×3 = 24000
 
 halfAngle   15;
-Ri          0.008002998;
-Ro          0.009997753;
+// Must match output/hollow-cylinder.physical-case.json (reconstructed radii).
+// validate_annulus.py checks these against the benchmark record and fails loudly
+// if they drift, so the mesh cannot silently represent a different geometry.
+Ri          0.007999341770415122;
+Ro          0.010000006675720215;
 L           0.05;
 Rmid        #eval{ ($Ri + $Ro)/2 };
 

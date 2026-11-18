@@ -47,7 +47,9 @@ class HollowCylinderConfig
 
     // Voxel size is a declared case parameter: it bounds which features the
     // geometry can represent, so it belongs in the case record, not in the code.
-    public double VoxelSizeMm { get; set; } = 0.3;
+    // 0.2 mm is the measured choice: the last resolution where refining still
+    // improves the geometry (see validation/voxel-resolution-curve.md).
+    public double VoxelSizeMm { get; set; } = 0.2;
 
     public static HollowCylinderConfig FromArgs(string[] args)
     {

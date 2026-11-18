@@ -45,22 +45,43 @@ dotnet run --project src/SGK.Geometry/ -- --auto-exit   # benchmark first
 solution. It reads the pressure gradient from the solver log (no magic
 numbers) and the benchmark from `output/hollow-cylinder.physical-case.json`.
 
-### Reference result (Omarchy, 2026-11-17)
+### Reference result (Omarchy, 2026-11-18)
 
-80×100×3 cells, cyclic periodic, 2000 iterations (~86 s serial):
+80×100×3 cells, cyclic periodic, 2000 iterations (~86 s serial), voxel size
+0.2 mm:
 
 | Metric | Value |
 |---|---|
 | mean \|err\| / Umax | 3.65 % |
-| max \|err\| / Umax | 7.17 % |
-| Umax error | 0.011 % |
-| pressure-gradient error | 0.74 % |
-| flow-rate error | 0.79 % |
+| max \|err\| / Umax | 7.14 % |
+| Umax error | 0.28 % |
+| pressure-gradient error | 1.04 % |
+| flow-rate error | 0.50 % |
 
 The peak velocity is compared against the continuous analytical maximum
 (evaluated where `du/dr = 0`), not against the largest of the 17 profile
 samples. The sampled peak understates the true peak by about 0.03 % and is kept
 in the record as `SampledMaxVelocityMPerS` for traceability.
+
+**Why the flow-rate error is 0.50 % and not noise.** The wedge spans 30° in
+three cells of 10°, so the cross-section is a polygon, not an annulus. A chord
+over 10° encloses `sin(θ)/θ = 0.99493` of the circular sector, i.e. the mesh has
+**0.507 % less flow area** than the geometry it represents. The measured
+flow-rate error is 0.4986 %. These are the same number: the error is fully
+explained by the angular discretisation, and it would disappear with a proper
+2D axisymmetric (`wedge`) mesh or with more angular cells.
+
+This also explains why the pressure-gradient error went from 0.74 % to 1.04 %
+when the voxel size moved to 0.2 mm. The previous 0.3 mm reconstruction produced
+radii 3 µm off (Ri 8.0030 instead of 8.0000), whose area was 0.29 % too small;
+that error happened to cancel part of the 0.51 % mesh bias. With the geometry
+now accurate to 0.1 µm, the mesh bias is no longer masked, and the honest number
+is the larger one.
+
+**`blockMeshDict` carries the radii as literal numbers.** `validate_annulus.py`
+checks them against the reconstructed radii in the benchmark record and fails
+with an explicit message if they drift, so the mesh cannot silently represent a
+different geometry.
 
 The near-wall bias is systematic and inherent to second-order finite-volume
 discretization at this aspect ratio (~35–55), not an implementation defect.

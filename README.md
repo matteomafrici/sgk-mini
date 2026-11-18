@@ -53,7 +53,7 @@ part is reconstructed with the solver's own gradient):
 |---|---|
 | Nominal outer / inner diameter | 20 mm / 16 mm |
 | Nominal length | 50 mm |
-| Voxel size | 0.3 mm |
+| Voxel size | 0.2 mm |
 | Density | 1000 kg/m³ |
 | Dynamic viscosity | 0.001 Pa·s |
 | Volumetric flow rate | 1e-6 m³/s |
@@ -67,8 +67,9 @@ exit effects neglected.
 The analytical model does not use the nominal radii directly: it reconstructs an
 equivalent annulus from the measured voxel volume and bounding box (area =
 volume / length). The reconstruction is honest but not exact, so the radii it
-works with differ slightly from the nominal ones — Ri = 8.0030 mm and
-Ro = 9.9978 mm in the reference run, against a nominal 8 mm and 10 mm.
+works with differ slightly from the nominal ones — Ri = 7.9993 mm and
+Ro = 10.0000 mm in the reference run at 0.2 mm voxel, against a nominal 8 mm and
+10 mm. The residual is 0.7 µm, about 0.004 voxel.
 
 ## Outputs
 
@@ -105,10 +106,10 @@ Flags:
 - `--config <file.json>` — override the geometry, e.g.
   `{ "OuterRadiusMm": 12.0, "InnerRadiusMm": 9.0, "LengthMm": 40.0,
   "VoxelSizeMm": 0.2 }`.
-  Defaults reproduce the validated 20/16 mm × 50 mm hollow cylinder at 0.3 mm
+  Defaults reproduce the validated 20/16 mm × 50 mm hollow cylinder at 0.2 mm
   voxel. `VoxelSizeMm` is a case parameter because it bounds which features the
   geometry can represent: a feature needs a few voxels across to be honest, so
-  at 0.3 mm nothing below about 0.9 mm is resolved. See
+  at 0.2 mm nothing below about 0.6 mm is resolved. See
   `validation/voxel-resolution-curve.md` for the measured trade-off.
 
 Output always lands in the repository's `output/` directory, regardless of the
@@ -145,11 +146,16 @@ dotnet run --project src/SGK.Geometry/ -- --auto-exit
   - wide gap (Ro = 30 mm, Re ≈ 17), as a sensitivity test.
   - Recommended mesh: cyclic periodic boundary conditions with
     `meanVelocityForce`, 80 × 100 × 3 cells, radial grading 1.5.
-  - Results: peak velocity (Umax) error 0.011%, pressure-gradient error 0.74%,
-    flow-rate error 0.79%, mean near-wall profile error 3.65% — as far as I can
-    tell, the near-wall error is systematic and inherent to second-order
-    finite-volume discretization at this aspect ratio, not an implementation
-    defect.
+  - Results at 0.2 mm voxel: peak velocity (Umax) error 0.28%, pressure-gradient
+    error 1.04%, flow-rate error 0.50%, mean near-wall profile error 3.65%.
+    The flow-rate error is fully explained by the angular discretisation: three
+    cells over a 30° wedge make a polygonal cross-section with 0.507% less area
+    than the annulus. The near-wall profile error is systematic and inherent to
+    second-order finite-volume discretization at this aspect ratio.
+  - The previous, better-looking numbers (0.011% / 0.74% / 0.79%) were measured
+    at 0.3 mm voxel, where the reconstructed radii were 3 µm off and partly
+    cancelled the mesh bias. Accurate geometry exposes the solver's own error
+    instead of hiding it.
 - This validation is reproducible from the repository: the cyclic case lives in
   `validation/openfoam/annulus_cyclic/`, and `scripts/check_analytic.py`
   regenerates and checks the analytical records against committed expectations.
@@ -170,7 +176,8 @@ moved to `sgk-mini.physical-record.v2` to mark the change:
   The sampled value is still recorded, as `SampledMaxVelocityMPerS` and
   `SampledMaxVelocityRadiusMm`, and the record validator asserts that it cannot
   exceed the continuous maximum. This moved the peak-velocity error against CFD
-  from 0.023 % to 0.011 %.
+  from 0.023 % to 0.011 % at the then-current 0.3 mm voxel size; at 0.2 mm the
+  mesh discretisation dominates instead, and the measured error is 0.28 %.
 - **Exit status.** A failure now exits non-zero. Exceptions raised inside the
   PicoGK task thread are captured there, since an exception escaping that thread
   is not guaranteed to reach the outer handler. Verified on two paths: a geometry
@@ -178,11 +185,14 @@ moved to `sgk-mini.physical-record.v2` to mark the change:
 
 ## What remains open
 
-- The reconstructed radii differ from the nominal ones by a few micrometres
-  (Ri = 8.0030 mm, Ro = 9.9978 mm against 8 and 10 mm) because the annulus is
-  rebuilt from voxel volume and bounding box. This is stated rather than fixed;
-  correcting it means extracting the fluid region from the voxel field, which is
-  the geometry-to-physics coupling still missing below.
+- The mesh still represents the annulus as a 30° wedge in three cells, so its
+  cross-section is a polygon with 0.507 % less area than the real annulus. This
+  is now measured instead of hidden, but it is a systematic bias in the
+  reference labels. A 2D axisymmetric (`wedge`) mesh would remove it and cost a
+  third of the cells.
+- The reconstructed radii still differ from the nominal ones by 0.7 µm at
+  0.2 mm voxel. That residual is the discretisation of the representation, and
+  it is reported rather than corrected.
 
 ## What is missing
 
@@ -250,10 +260,11 @@ injected error must be detected. A check that cannot fail proves nothing.
 
 ### Resolution rule
 
-The voxel size is a case parameter, not a constant. A feature is represented
-honestly only at a few voxels across; at 0.3 mm, features below about 0.9 mm are
-not resolvable. The dataset bounds must respect that rule, and the coarse/fine
-resolution split (search versus final verification) follows from it.
+The voxel size is a case parameter, not a constant, and the default is 0.2 mm.
+A feature is represented honestly only at a few voxels across; at 0.2 mm,
+features below about 0.6 mm are not resolvable. The dataset bounds must respect
+that rule, and the coarse/fine resolution split (search versus final
+verification) follows from it.
 
 ### What this stage will not claim
 

@@ -38,13 +38,18 @@ narrow-band representation. Wall time grows only ×4.1, because a fixed overhead
 
 ## Recommendation
 
-Use **0.2 mm** as the default for the dataset, not 0.3 mm. It is the last
-resolution where changing the voxel still improves the geometry, and the cost
-difference is 0.4 s per case.
+**Applied on 2026-11-18:** the default voxel size is now **0.2 mm**. It is the
+last resolution where changing the voxel still improves the geometry, and the
+cost difference is 0.4 s per case.
 
 Keep 0.1 mm for a final verification pass on the selected design, where 4 s is
 irrelevant and where the geometry is checked against its manufacturing
 constraints.
+
+Applying it moved the reconstructed radii from 9.9978 / 8.0030 mm to
+10.0000 / 7.9993 mm, and exposed a bias of the reference mesh that the previous,
+less accurate radii had been partly cancelling. See
+`validation/README.md` for that analysis.
 
 ## What this does not show
 

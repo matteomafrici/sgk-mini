@@ -2,11 +2,11 @@
   "SchemaVersion": "sgk-mini.feature-record.v1",
   "CaseId": "hollow-cylinder",
   "SourceVdbPath": "output/hollow-cylinder.vdb",
-  "VolumeMm3": 5640.2725,
-  "BBoxMinXMm": -9.997753,
-  "BBoxMinYMm": -9.997753,
+  "VolumeMm3": 5656.542,
+  "BBoxMinXMm": -10.000007,
+  "BBoxMinYMm": -10.000007,
   "BBoxMinZMm": 0,
-  "BBoxMaxXMm": 9.997753,
-  "BBoxMaxYMm": 9.997753,
+  "BBoxMaxXMm": 10.000007,
+  "BBoxMaxYMm": 10.000007,
   "BBoxMaxZMm": 50
 }

@@ -150,6 +150,42 @@ def solver_dpL_from_log(log_path, rho):
     return float(matches[-1]) * rho
 
 
+def check_mesh_radii(Ri_bench, Ro_bench, tol_rel=1e-6):
+    """The mesh carries its radii as literal numbers; the record carries the radii
+    reconstructed from the voxel geometry. If they drift apart, the solver is
+    computing a different geometry than the record describes, and the comparison
+    silently compares two different problems."""
+    mesh_dict = os.path.join(CASE, "system", "blockMeshDict")
+    values = {}
+
+    with open(mesh_dict) as f:
+        for line in f:
+            stripped = line.split("//")[0].strip().rstrip(";")
+            parts = stripped.split(None, 1)
+            if len(parts) == 2 and parts[0] in ("Ri", "Ro"):
+                values[parts[0]] = float(parts[1])
+
+    problems = []
+    for name, bench in (("Ri", Ri_bench), ("Ro", Ro_bench)):
+        if name not in values:
+            problems.append(f"{name} not found in {mesh_dict}")
+            continue
+        rel = abs(values[name] - bench) / bench
+        if rel > tol_rel:
+            problems.append(
+                f"{name} in blockMeshDict = {values[name]:.9f} m, benchmark record "
+                f"says {bench:.9f} m (relative difference {rel:.2e})"
+            )
+
+    if problems:
+        raise SystemExit(
+            "Mesh and geometry record disagree:\n  "
+            + "\n  ".join(problems)
+            + "\n\nUpdate system/blockMeshDict from output/hollow-cylinder.physical-case.json,"
+            "\nor re-run the geometry stage if the voxel size changed."
+        )
+
+
 def main():
     check = "--check" in sys.argv
 
@@ -169,6 +205,8 @@ def main():
     rho = bench["DensityKgPerM3"]
     Umax_b = bench["MaxVelocityMPerS"]
     Q_b = bench["VolumetricFlowRateM3PerS"]
+
+    check_mesh_radii(Ri, Ro)
 
     time_name = latest_time_dir(CASE)
     if time_name is None or time_name == "0":
