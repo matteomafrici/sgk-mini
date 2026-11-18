@@ -124,6 +124,11 @@ Flags:
 Without `OutputDirectory`, output lands in the repository's `output/` directory,
 regardless of the working directory the program is launched from.
 
+## Read-only workbench
+
+The local workbench shows the batch, VDB geometry, CFD profiles, checks, logs
+and source history. See the [launch command and artifact interface](workbench/README.md).
+
 ## Reproduce the validation
 
 ```bash

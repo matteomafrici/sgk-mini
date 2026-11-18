@@ -28,6 +28,9 @@ Use this note to resume the mini.
   case identity and split, verified hashes and normalization round trips,
   and reproduced saved-field flow on every case. Training, search and the
   AI interface remain open. CFD still uses reconstructed annulus dimensions.
+- The [read-only workbench](../workbench/README.md) displays the actual
+  dataset, geometry, reference checks, attempt logs and Git diffs. Its run
+  receipt format can display trainer logs and metrics when they are published.
 - See the [batch report](../pipeline/reports/batch-v1.md) for the outcome,
   evidence and data paths.
 - The eight executed inputs are in

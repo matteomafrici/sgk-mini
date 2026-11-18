@@ -1,0 +1,141 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#0b0e12">
+  <title>SGK Workbench · Annulus</title>
+  <link rel="stylesheet" href="/style.css">
+  <script defer src="/app.js"></script>
+</head>
+<body>
+  <header class="topbar">
+    <div class="topbar-inner">
+      <a class="identity" href="#overview" aria-label="SGK Workbench overview">
+        <span class="mark" aria-hidden="true"><i></i><b></b></span>
+        <span><strong>SGK</strong><span class="brand-slash">/</span> WORKBENCH</span>
+      </a>
+      <nav aria-label="Workbench sections">
+        <a class="nav-active" href="#overview">Overview</a>
+        <a href="#cases">Cases</a>
+        <a href="#runs">Runs &amp; history</a>
+      </nav>
+      <div class="top-state"><span class="readonly"><span aria-hidden="true">◉</span> Read only</span><span class="local">LOCAL</span></div>
+    </div>
+  </header>
+
+  <main id="overview">
+    <section class="intro" aria-labelledby="title">
+      <div>
+        <div class="crumb"><span>SGK MINI</span><b>/</b><span>REFERENCE DATASET</span></div>
+        <h1 id="title">Annulus <span id="batch-version">V1</span></h1>
+        <p>From voxel geometry to validated flow fields.</p>
+      </div>
+      <div class="source-state">
+        <div id="connection" class="connection" role="status"><i></i><span>Connecting to local data</span></div>
+        <div id="revision" class="micro">—</div>
+      </div>
+    </section>
+
+    <section class="stats" aria-label="Dataset summary">
+      <article class="stat"><div class="stat-label">Accepted cases<span class="stat-icon" aria-hidden="true">▤</span></div><div id="accepted" class="stat-value">—</div><div id="accepted-sub" class="stat-foot">CFD reference</div></article>
+      <article class="stat"><div class="stat-label">Model inputs<span class="stat-icon" aria-hidden="true">▦</span></div><div id="prepared" class="stat-value">—</div><div id="prepared-sub" class="stat-foot">VDB + field arrays</div></article>
+      <article class="stat"><div class="stat-label">Max. flow error<span class="stat-icon" aria-hidden="true">≈</span></div><div id="flow" class="stat-value">—</div><div class="stat-foot">Acceptance limit <span>0.05%</span></div></article>
+      <article class="stat"><div class="stat-label">Max. gradient error<span class="stat-icon" aria-hidden="true">∆</span></div><div id="gradient" class="stat-value">—</div><div class="stat-foot">Acceptance limit <span>0.5%</span></div></article>
+    </section>
+
+    <section class="primary">
+      <article class="panel viewer">
+        <div class="panel-header">
+          <div><h2>Case viewer</h2><div id="view-caption" class="micro">VDB + OPENFOAM</div></div>
+          <div class="tabs" aria-label="Field view">
+            <button data-view="geometry" aria-pressed="true">3D Geometry</button>
+            <button data-view="velocity" aria-pressed="false">Velocity</button>
+            <button data-view="sdf" aria-pressed="false">SDF Section</button>
+          </div>
+        </div>
+        <div id="viewport" class="viewport">
+          <canvas id="figure" aria-label="Prepared case geometry or flow visualization" tabindex="0"></canvas>
+          <div id="view-badge" class="view-badge">PicoGK frame · mm</div>
+          <button id="reset" class="reset" type="button">Reset view</button>
+          <div id="view-error" class="view-error" hidden></div>
+        </div>
+        <div class="figure-footer">
+          <div id="legend" class="legend"><span><i></i>VDB surface</span><span><i class="orange"></i>CFD sample sector</span></div>
+          <span id="controls-hint" class="micro">Drag to orbit · Scroll to zoom</span>
+        </div>
+        <div id="point-detail" class="point-detail" aria-live="polite" hidden></div>
+      </article>
+
+      <article class="panel inspector">
+        <div class="panel-header"><div><h2>Case inspection</h2><div id="case-id" class="micro">—</div></div><span id="case-status" class="pass" hidden>Accepted</span></div>
+        <div class="case-body">
+          <div class="case-meta"><span id="case-split" class="split-pill">—</span><span id="case-attempts" class="micro">—</span></div>
+          <dl class="parameters">
+            <div><dt>Outer radius</dt><dd id="radius">—</dd></div>
+            <div><dt>Gap</dt><dd id="gap">—</dd></div>
+            <div><dt>Voxel pitch</dt><dd id="voxel">—</dd></div>
+            <div><dt>Reynolds no.</dt><dd id="reynolds">—</dd></div>
+          </dl>
+          <div class="case-verification">
+            <div class="block-title">Acceptance</div>
+            <div class="check"><span>Saved-field flow</span><strong id="case-flow">—</strong></div>
+            <div class="check"><span>Pressure gradient</span><strong id="case-gradient">—</strong></div>
+            <div class="check"><span>OpenFOAM cells</span><strong id="case-cells">—</strong></div>
+          </div>
+          <details id="checks" class="check-detail" hidden>
+            <summary>All acceptance checks</summary>
+            <ul id="check-list"></ul>
+          </details>
+          <div class="inspector-footer"><span id="case-source" class="micro">—</span><a href="#runs" id="inspect-logs">Inspect logs</a></div>
+        </div>
+      </article>
+    </section>
+
+    <section class="panel catalogue" id="cases">
+      <div class="panel-header">
+        <div><h2>Case catalogue</h2><div id="case-count" class="micro">—</div></div>
+        <div class="case-controls">
+          <label class="search"><span aria-hidden="true">⌕</span><input id="search" type="search" placeholder="Find case" aria-label="Find case by ID"></label>
+          <select id="split-filter" aria-label="Filter by split"><option value="">All splits</option><option value="train">Training</option><option value="validation">Validation</option><option value="test">Test</option><option value="edge">Stress</option></select>
+        </div>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Case ID</th><th>Split</th><th>Outer radius</th><th>Gap</th><th>Reynolds</th><th>Flow error</th><th>Gradient error</th><th>Status</th></tr></thead>
+          <tbody id="case-rows"></tbody>
+        </table>
+      </div>
+      <div class="table-footer"><span class="micro" id="page-range">—</span><div><button type="button" id="previous">Previous</button><button type="button" id="next">Next</button></div></div>
+    </section>
+
+    <section class="run-zone" id="runs" aria-label="Runs and source history">
+      <article class="panel logs">
+        <div class="panel-header"><div><h2>Attempt logs</h2><div class="micro" id="logs-case">—</div></div><select id="attempt" aria-label="Select attempt"></select></div>
+        <div class="log-controls tabs" aria-label="Log source">
+          <button data-log="reference" aria-pressed="true">Reference</button>
+          <button data-log="geometry" aria-pressed="false">Geometry</button>
+          <button data-log="mesh" aria-pressed="false">Mesh</button>
+          <button data-log="solver" aria-pressed="false">Solver</button>
+        </div>
+        <div id="attempt-reason" class="attempt-reason" hidden></div>
+        <pre id="log-text" tabindex="0">Select a case to inspect its logs.</pre>
+        <div id="artifact-path" class="artifact-path micro"></div>
+      </article>
+      <div class="run-stack">
+        <article class="panel training">
+          <div class="panel-header"><div><h2>Training runs</h2><div class="micro">LOCAL RUN ARTIFACTS</div></div><select id="training-select" aria-label="Select training run" hidden></select></div>
+          <div id="training-empty" class="empty">No training run recorded.</div>
+          <div id="training-live" hidden><div class="training-meta" id="training-meta"></div><canvas id="loss-chart" aria-label="Training and validation loss"></canvas><pre id="training-log" tabindex="0"></pre></div>
+        </article>
+        <article class="panel history">
+          <div class="panel-header"><div><h2>Source history</h2><div class="micro">RECENT COMMITS</div></div></div>
+          <ol id="commits"></ol>
+          <pre id="diff-text" tabindex="0" hidden></pre>
+        </article>
+      </div>
+    </section>
+    <footer class="site-footer"><span>SGK MINI / WORKBENCH</span><span>Read-only · Local artifacts</span></footer>
+  </main>
+</body>
+</html>
