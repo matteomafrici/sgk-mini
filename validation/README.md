@@ -47,8 +47,8 @@ numbers) and the benchmark from `output/hollow-cylinder.physical-case.json`.
 
 ### Reference result (Omarchy, 2026-11-18)
 
-2° axisymmetric wedge, 80×100×1 cells, axial periodicity, 8000 iterations
-(~98 s serial), voxel size 0.2 mm:
+2° axisymmetric wedge, 58×100×1 cells, axial periodicity, 8000 iterations,
+voxel size 0.2 mm:
 
 | Metric | Value |
 |---|---|
@@ -56,7 +56,7 @@ numbers) and the benchmark from `output/hollow-cylinder.physical-case.json`.
 | max \|err\| / Umax | 0.0071 % |
 | Umax error | 0.010 % |
 | pressure-gradient error | 0.0095 % |
-| flow-rate error (native flux) | 0.0203 % |
+| flow-rate error (native flux / saved field) | 0.020307 / 0.020306 % |
 | mesh sector-area defect | −0.0203 % |
 
 The flow-rate error is now the measured geometric defect of the finite wedge,

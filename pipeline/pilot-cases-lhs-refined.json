@@ -1,0 +1,152 @@
+{
+  "schema": "sgk-mini.pilot-cases.v1",
+  "seed": 20261118,
+  "algorithm": "Generate complete Latin hypercubes over [Ro, gap, L, log10(Q)]. Reject entire designs with inadmissible cases. Keep the feasible design with the greatest minimum normalized pairwise distance.",
+  "pool_size": 400,
+  "feasible_designs": 390,
+  "selected_count": 8,
+  "bounds": {
+    "outer_radius_mm": [
+      6.0,
+      20.0
+    ],
+    "gap_mm": [
+      0.6,
+      6.0
+    ],
+    "length_mm": [
+      10.0,
+      60.0
+    ],
+    "flow_rate_m3_s": [
+      1e-06,
+      3e-05
+    ]
+  },
+  "voxel_size_mm": 0.2,
+  "constraints": {
+    "gap_min_mm": 0.6000000000000001,
+    "inner_radius_min_mm": 0.6000000000000001,
+    "reynolds_max": 2000,
+    "note": "inner radius >= 3 voxels is an additional geometry-admissibility bound: a radius below three voxels is not a measurement of the requested shape."
+  },
+  "minimum_normalized_distance": 0.5821342741953425,
+  "duplicate_policy": "a normalized Euclidean distance below 0.05 in the unit cube is treated as a near-duplicate and is not accepted",
+  "grouping_policy": "the normalized annular field depends only on Ri/Ro; Q scales it and L does not change it. Groups are therefore defined by round(Ri/Ro, 4). A future train/test split must keep a group intact; this pilot assigns no split because nothing is trained.",
+  "cases": [
+    {
+      "case_id": "ann-3b6beee6",
+      "outer_radius_mm": 18.102231727202632,
+      "inner_radius_mm": 13.601248663788585,
+      "gap_mm": 4.500983063414046,
+      "length_mm": 50.478520226770854,
+      "flow_rate_m3_s": 1.793095919445417e-05,
+      "voxel_size_mm": 0.2,
+      "density_kg_m3": 1000.0,
+      "viscosity_pa_s": 0.001,
+      "mean_velocity_m_s": 0.039998097005409426,
+      "reynolds": 360.06151438027985
+    },
+    {
+      "case_id": "ann-bb52ceb1",
+      "outer_radius_mm": 7.738459153964898,
+      "inner_radius_mm": 4.358995789485689,
+      "gap_mm": 3.3794633644792094,
+      "length_mm": 32.93187599218492,
+      "flow_rate_m3_s": 1.1302477594625217e-05,
+      "voxel_size_mm": 0.2,
+      "density_kg_m3": 1000.0,
+      "viscosity_pa_s": 0.001,
+      "mean_velocity_m_s": 0.0879998690815913,
+      "reynolds": 594.784667280409
+    },
+    {
+      "case_id": "ann-0dc072bd",
+      "outer_radius_mm": 14.260450102240796,
+      "inner_radius_mm": 9.055157696367381,
+      "gap_mm": 5.205292405873416,
+      "length_mm": 10.515042082275581,
+      "flow_rate_m3_s": 2.913578966281941e-06,
+      "voxel_size_mm": 0.2,
+      "density_kg_m3": 1000.0,
+      "viscosity_pa_s": 0.001,
+      "mean_velocity_m_s": 0.00764161315369105,
+      "reynolds": 79.55366183506085
+    },
+    {
+      "case_id": "ann-32e97c56",
+      "outer_radius_mm": 16.462911206129387,
+      "inner_radius_mm": 15.08996028755406,
+      "gap_mm": 1.3729509185753264,
+      "length_mm": 23.13154718170331,
+      "flow_rate_m3_s": 2.519925979097252e-05,
+      "voxel_size_mm": 0.15,
+      "density_kg_m3": 1000.0,
+      "viscosity_pa_s": 0.001,
+      "mean_velocity_m_s": 0.18515865207790758,
+      "reynolds": 508.427482905065
+    },
+    {
+      "case_id": "ann-8f9816ac",
+      "outer_radius_mm": 8.126723399683371,
+      "inner_radius_mm": 2.5861470665534894,
+      "gap_mm": 5.540576333129882,
+      "length_mm": 39.38363268225642,
+      "flow_rate_m3_s": 1.1785305381820556e-06,
+      "voxel_size_mm": 0.2,
+      "density_kg_m3": 1000.0,
+      "viscosity_pa_s": 0.001,
+      "mean_velocity_m_s": 0.006320190539811324,
+      "reynolds": 70.03499625149998
+    },
+    {
+      "case_id": "ann-d2a796de",
+      "outer_radius_mm": 11.983485320391992,
+      "inner_radius_mm": 9.218957349191598,
+      "gap_mm": 2.764527971200394,
+      "length_mm": 57.07229310045065,
+      "flow_rate_m3_s": 1.7245858071687572e-06,
+      "voxel_size_mm": 0.15,
+      "density_kg_m3": 1000.0,
+      "viscosity_pa_s": 0.001,
+      "mean_velocity_m_s": 0.0093654370471913,
+      "reynolds": 51.78202535895355
+    },
+    {
+      "case_id": "ann-66883538",
+      "outer_radius_mm": 19.338020058058497,
+      "inner_radius_mm": 17.164552173336517,
+      "gap_mm": 2.1734678847219793,
+      "length_mm": 44.95964543054797,
+      "flow_rate_m3_s": 3.71301793260134e-06,
+      "voxel_size_mm": 0.2,
+      "density_kg_m3": 1000.0,
+      "viscosity_pa_s": 0.001,
+      "mean_velocity_m_s": 0.014897056934919724,
+      "reynolds": 64.75654964984572
+    },
+    {
+      "case_id": "ann-fe839e14",
+      "outer_radius_mm": 10.87265202193554,
+      "inner_radius_mm": 10.009682235498936,
+      "gap_mm": 0.8629697864366048,
+      "length_mm": 19.45073123418141,
+      "flow_rate_m3_s": 6.327033746729363e-06,
+      "voxel_size_mm": 0.2,
+      "density_kg_m3": 1000.0,
+      "viscosity_pa_s": 0.001,
+      "mean_velocity_m_s": 0.11175723395514929,
+      "reynolds": 192.88623263804172
+    }
+  ],
+  "geometry_resolution_policy": {
+    "tested_mm": [
+      0.2,
+      0.15,
+      0.1,
+      0.075
+    ],
+    "selection": "First size that passes the existing geometry checks for each sampled point.",
+    "source_design": "pipeline/pilot-cases-lhs.json"
+  }
+}

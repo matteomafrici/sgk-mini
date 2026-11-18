@@ -64,6 +64,10 @@ echo "== blockMesh =="
 
 echo "== checkMesh =="
 ( cd "$CASE" && checkMesh -allGeometry -allTopology > log.checkMesh 2>&1 )
+if ! grep -q '^Mesh OK\.$' "$CASE/log.checkMesh"; then
+    echo "Mesh quality checks failed. See $CASE/log.checkMesh." >&2
+    exit 1
+fi
 
 echo "== simpleFoam =="
 ( cd "$CASE" && simpleFoam > log.simpleFoam 2>&1 )

@@ -43,7 +43,7 @@ zm          #eval{ $Rmid * $cosHA };
 yo          #eval{ $Ro * $sinHA };
 zo          #eval{ $Ro * $cosHA };
 
-nX          80;
+nX          58;
 nR1         50;
 nR2         50;
 nAng        1;

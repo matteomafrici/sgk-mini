@@ -20,14 +20,14 @@ solvers
     {
         solver          GAMG;
         smoother        GaussSeidel;
-        tolerance       1e-06;
+        tolerance       1e-10;
         relTol          0;
     }
 
     pFinal
     {
         $p;
-        tolerance       1e-06;
+        tolerance       1e-10;
         relTol          0;
     }
 
@@ -35,14 +35,14 @@ solvers
     {
         solver          smoothSolver;
         smoother        symGaussSeidel;
-        tolerance       1e-06;
+        tolerance       1e-10;
         relTol          0;
     }
 
     UFinal
     {
         $U;
-        tolerance       1e-06;
+        tolerance       1e-10;
         relTol          0;
     }
 }

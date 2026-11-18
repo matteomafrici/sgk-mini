@@ -11,7 +11,7 @@ solution. The figures below are committed in the repository, so you can read
 them without cloning or running anything.
 
 **Values — CFD against analytical** (annulus Ri=8.00 mm, Ro=10.00 mm, Re≈35,
-2° axisymmetric wedge, 80×100×1 cells, 8000 iterations):
+2° axisymmetric wedge, 58×100×1 cells, 8000 iterations):
 
 ![validation values](validation/figures/04_metrics_summary.png)
 
@@ -224,6 +224,11 @@ could not see. Each is fixed and has a focused negative test:
 The reference case is now a 2° axisymmetric wedge in one tangential cell instead
 of a 30° section in three. Its area defect is 0.0203 % instead of 0.507 %, and
 the flow-rate label carries only that measured defect.
+
+The reference uses bounded `linearUpwind` and sets the axial resolution from
+case length and radial pitch. The eight-case Latin hypercube and a separate
+stress test at reconstructed Re = 1989.7 passed the existing checks. See the
+[Reynolds convergence report](pipeline/reports/reynolds-readiness.md).
 
 ## What remains open
 

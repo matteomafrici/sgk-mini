@@ -1,47 +1,48 @@
 {
   "report": {
-    "case_dir": "/home/matteomafrici/Work/sgk-mini/validation/openfoam/annulus_cyclic",
-    "benchmark": "/home/matteomafrici/Work/sgk-mini/output/hollow-cylinder.physical-case.json",
+    "case_dir": "/tmp/sgk-reynolds-d0.fOps24/validation/openfoam/annulus_cyclic",
+    "benchmark": "/tmp/sgk-reynolds-d0.fOps24/output/hollow-cylinder.physical-case.json",
     "time_dir": "8000",
     "mesh": {
       "Ri": 0.007999341770415122,
       "Ro": 0.010000006675720215,
       "L": 0.05,
       "halfAngleDeg": 1.0,
-      "nX": 80,
+      "nX": 58,
       "nR1": 50,
       "nR2": 50,
       "nAng": 1,
       "totalAngleDeg": 2.0,
-      "cells": 8000
+      "cells": 5800
     },
     "iterations": 8000,
     "endTime": 8000,
     "stopping_reason": "iteration-limit",
     "residuals": {
-      "Ux": 6.6854877e-11,
-      "Uy": 1.9357568e-06,
-      "Uz": 0.0007600577,
-      "p": 0.10971281
+      "Ux": 1.0696329e-13,
+      "Uy": 9.2325089e-07,
+      "Uz": 0.00049063154,
+      "p": 0.0038292328
     },
     "residual_targets": {
       "p": 0.001,
       "U": 1e-05
     },
-    "continuity_global": -1.780226e-19,
-    "p_field_max_abs": 1.6361625e-15,
-    "p_field_ratio": 1.2358472501547123e-12,
-    "max_transverse_ratio": 1.4796667036350415e-11,
+    "continuity_global": -4.6010029e-18,
+    "continuity_flow_m3_s": -1.445582286467575e-25,
+    "p_field_max_abs": 1.3794314e-17,
+    "p_field_ratio": 1.0419298220482775e-14,
+    "max_transverse_ratio": 6.630871968538634e-15,
     "stability": {
       "umax_rel": 0.0,
-      "q_full_rel": 1.871982011699936e-09,
+      "q_full_rel": 0.0,
       "dpL_rel": 0.0
     },
-    "profile_station_x_m": 0.0246875,
+    "profile_station_x_m": 0.024568966,
     "profile": {
-      "mean_pct": 0.004630905266370126,
+      "mean_pct": 0.004630914311844541,
       "max_pct": 0.0071250592637388315,
-      "rms_pct": 0.005132683003302251,
+      "rms_pct": 0.005132708953340564,
       "cells": 100
     },
     "umax_cfd": 0.013264946,
@@ -54,43 +55,43 @@
     "Q_right": 5.5544274e-09,
     "Q_imbalance": 0.0,
     "Q_full_native": 9.99796932e-07,
-    "Q_full_field": 9.997969376698995e-07,
+    "Q_full_field": 9.99796937521336e-07,
     "Q_bench": 1e-06,
     "Q_err_pct": 0.0203067999999921,
-    "Q_field_err_pct": 0.020306233010049725,
-    "A_mesh_sector": 6.2837703792e-07,
+    "Q_field_err_pct": 0.02030624786639352,
+    "A_mesh_sector": 6.283770377400001e-07,
     "A_ideal_sector": 6.285046657986112e-07,
-    "area_defect_pct": -0.020306592067868657,
+    "area_defect_pct": -0.020306620707258454,
     "patch_areas": {
       "cyclicRight": 6.2837704e-07
     },
-    "Q_field_vs_native_pct": 5.671051032749818e-07
+    "Q_field_vs_native_pct": 5.522457420182565e-07
   },
   "checks": [
     {
       "name": "Ux residual below target",
       "passed": true,
-      "detail": "6.6854877e-11 vs 1e-05"
+      "detail": "1.0696329e-13 vs 1e-05"
     },
     {
       "name": "p residual below target (or p field negligible)",
       "passed": true,
-      "detail": "residual 0.10971281 vs 0.001; |p|/(dpL/rho*L) = 1.236e-12 (negligible: normalized residual not applicable)"
+      "detail": "residual 0.0038292328 vs 0.001; |p|/(dpL/rho*L) = 1.042e-14 (negligible: normalized residual not applicable)"
     },
     {
       "name": "transverse velocity negligible",
       "passed": true,
-      "detail": "max|Uy,Uz|/Umax = 1.480e-11"
+      "detail": "max|Uy,Uz|/Umax = 6.631e-15"
     },
     {
       "name": "continuity closed",
       "passed": true,
-      "detail": "global = -1.780e-19 m3/s"
+      "detail": "equivalent sector flow = -1.445582286467575e-25 m3/s"
     },
     {
       "name": "observables stable",
       "passed": true,
-      "detail": "umax_rel=0.00e+00, q_full_rel=1.87e-09, dpL_rel=0.00e+00"
+      "detail": "umax_rel=0.00e+00, q_full_rel=0.00e+00, dpL_rel=0.00e+00"
     },
     {
       "name": "convergence criteria met",
@@ -105,7 +106,12 @@
     {
       "name": "full-circle flow rate",
       "passed": true,
-      "detail": "0.0203 % < 0.05 % (native); field integral 0.0203 %"
+      "detail": "0.0203 % < 0.05 % (native)"
+    },
+    {
+      "name": "saved-field flow rate",
+      "passed": true,
+      "detail": "0.0203 % < 0.05 %"
     },
     {
       "name": "pressure gradient",

@@ -299,6 +299,14 @@ def prepare_openfoam_case(request, physical, case_dir):
         n_radial += 1
     n_half = n_radial // 2
 
+    # Bound the axial pitch relative to a lower bound on the smallest radial
+    # cell. Both radial blocks span half the gap and use a 1.5 grading ratio.
+    # CheckMesh remains authoritative for the actual generated mesh.
+    gap_m = (physical["OuterRadiusMm"] - physical["InnerRadiusMm"]) * 1e-3
+    length_m = physical["LengthMm"] * 1e-3
+    min_radial_pitch = gap_m / (n_radial * 1.5)
+    n_axial = max(8, math.ceil(length_m / (65 * min_radial_pitch)))
+    text = _replace_literal(text, "nX", str(n_axial))
     text = _replace_literal(text, "nR1", str(n_half))
     text = _replace_literal(text, "nR2", str(n_half))
     text = _replace_literal(text, "Ri", f"{physical['InnerRadiusMm'] * 1e-3:.17g}")

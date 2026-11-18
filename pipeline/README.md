@@ -13,6 +13,9 @@ annular case is an instance, not a framework.
 - `pilot-cases.json` — the historical eight-case design and its original results.
 - `pilot-cases-lhs.json` — the follow-up design with eight points and one point
   per stratum in each dimension.
+- `pilot-cases-lhs-refined.json` — the executed follow-up design. It preserves
+  the same physical points and uses finer voxels for the two geometries that
+  missed the volume tolerance at 0.2 mm.
 - `reports/` — compact, committed results; the data itself is elsewhere.
 
 ## Data layout
@@ -48,7 +51,8 @@ dotnet build src/SGK.Geometry/ -c Debug
 ~/data/venvs/sgk-mini/bin/python pipeline/run_pilot.py --only ann-XXXXXXXX
 ```
 
-Use `--cases pipeline/pilot-cases-lhs.json` to run the follow-up design.
+Use `--cases pipeline/pilot-cases-lhs-refined.json` to reproduce the executed
+follow-up design.
 Use `--reports` to select a distinct report directory when comparing designs.
 
 The pilot stops after the eight requested cases. Nothing trains a model and
@@ -58,6 +62,9 @@ nothing generates the full batch.
 
 The mesher, the solver schemes and the physical model are the validated
 reference configuration. `prepare_openfoam_case` copies the reference
-dictionaries and changes only the case literals (radii, length, imposed mean
-velocity, kinematic viscosity, radial cell count). Every literal is re-checked
-against the physical record by `run_annulus.sh` before `blockMesh`.
+dictionaries and sets the case literals (radii, length, imposed mean velocity,
+kinematic viscosity, and axial and radial cell counts). The number of axial
+cells depends on length and radial pitch. A short, wide-gap annulus can have
+eight axial cells, while a long or narrow-gap annulus can need more. The runner
+checks the physical inputs before `blockMesh` and requires `checkMesh` to
+report `Mesh OK.` before starting the solver.
