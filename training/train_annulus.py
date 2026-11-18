@@ -311,8 +311,12 @@ def fit(args, data, device, *, model_factory=ParameterMLP,
                 if val_loss < best:
                     best, best_rows, best_step = val_loss, rows, step
                     # Only one final checkpoint is published at the end of the run.
-                    best_weights = {name: parameter.detach().cpu().clone()
-                                    for name, parameter in model.state_dict().items()}
+                    # Use the PyTorch tensor state. NeuralOperator adds
+                    # constructor metadata to its overridden state_dict;
+                    # the run receipt already stores the model configuration.
+                    best_weights = nn.Module.state_dict(model)
+                    for name, parameter in best_weights.items():
+                        best_weights[name] = parameter.detach().cpu().clone()
                 if step == 1 or step % 20 == 0 or step == args.epochs:
                     log.write(f"epoch {step:4d} | val {val_loss:.5g} | "
                               f"flow max {max(row['flow_pct'] for row in rows):.3f}% | "
