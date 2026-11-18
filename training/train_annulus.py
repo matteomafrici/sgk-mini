@@ -59,19 +59,30 @@ class Case:
 
 
 class AnnulusData:
-    def __init__(self, dataset, device):
+    def __init__(self, dataset, device, gradient_scale="outer-radius"):
         self.root = dataset.resolve()
         self.inputs = self.root / "model-inputs-v1"
         index = read(self.inputs / "index.json")
         checked_path(self.root, "index.json", index["source_index_sha256"])
         self.digest = sha256(self.inputs / "index.json")
         self.rows = index["cases"]
-        source = {row["physical_case_id"]: row for row in read(self.root / "index.json")["cases"]}
+        source_index = read(self.root / "index.json")
+        source = {row["physical_case_id"]: row for row in source_index["cases"]}
+        self.split_bands = read(checked_path(
+            self.root, "manifest.json", source_index["manifest_sha256"]
+        ))["split_bands"]
         if (len(self.rows) != len(source)
                 or {row["case_id"]: row["split"] for row in self.rows}
                 != {key: row["split"] for key, row in source.items() if row["status"] == "ok"}):
             raise ValueError("prepared and reference splits or case IDs differ")
         self.device = device
+        self.gradient_scale = gradient_scale
+
+    def tensor(self, value):
+        return torch.as_tensor(value, device=self.device, dtype=torch.float32)
+
+    def gradient_unit(self, outer_scale, ratio):
+        return outer_scale / (1 - ratio)**2 if self.gradient_scale == "gap" else outer_scale
 
     def cases(self, splits, case_id=None):
         rows = [row for row in self.rows if row["split"] in splits
@@ -108,16 +119,48 @@ class AnnulusData:
             for r in radius
         ])
 
-        def tensor(value):
-            return torch.as_tensor(value, device=self.device, dtype=torch.float32)
-
+        unit = self.gradient_unit(scale["gradient_pa_m"], ri / ro)
         return Case(
-            row["case_id"], row["split"], tensor(features), tensor(velocity),
-            tensor(volumes / volumes.sum()), tensor(math.log(gradient / scale["gradient_pa_m"])),
+            row["case_id"], row["split"], self.tensor(features), self.tensor(velocity),
+            self.tensor(volumes / volumes.sum()), self.tensor(math.log(gradient / unit)),
             analytical, volumes, factor, physical["VolumetricFlowRateM3PerS"],
-            scale["gradient_pa_m"], physical["PressureGradientPaPerM"],
+            unit, physical["PressureGradientPaPerM"],
         )
 
+    def analytical_cases(self, training, n):
+        ratios = sorted(float(case.inputs[0, 0]) for case in training)
+        if n < len(ratios):
+            raise ValueError("analytic case count must cover the CFD training ratios")
+        # Keep the same shape range, and reserve complete validation, test and
+        # edge bands even for generated labels. Start at the original ratios.
+        candidates = np.linspace(ratios[0], ratios[-1], 20001)[1:-1]
+        bands = [self.split_bands["validation"], self.split_bands["test"], *self.split_bands["edge"]]
+        for low, high in bands:
+            candidates = candidates[(candidates < low - .0025) | (candidates > high + .0025)]
+        while len(ratios) < n:
+            distance = np.min(np.abs(candidates[:, None] - ratios), axis=1)
+            ratios.append(float(candidates[np.argmax(distance)]))
+        eta = (np.arange(256) + .5) / 256
+        cases = []
+        for i, ratio in enumerate(sorted(ratios)):
+            if any(low <= ratio <= high for low, high in bands):
+                raise ValueError("the analytic generator entered a reserved split band")
+            # Choose Ro=mu=Ubar=1 for the dimensionless solution.
+            area_factor = 1 - ratio**2
+            conductance = 1 - ratio**4 - area_factor**2 / math.log(1 / ratio)
+            gradient = 8 * area_factor / conductance
+            radius = ratio + eta * (1 - ratio)
+            velocity = np.array([U_analytical(r, ratio, 1, gradient, 1) for r in radius])
+            volume = 2 * math.pi * radius * (1 - ratio) / len(radius)
+            unit = self.gradient_unit(1, ratio)
+            cases.append(Case(
+                f"analytic-{i:03d}", "train",
+                self.tensor(np.column_stack((np.full(len(eta), ratio), eta))),
+                self.tensor(velocity), self.tensor(volume / volume.sum()),
+                self.tensor(math.log(gradient / unit)), velocity, volume, 1,
+                math.pi * area_factor, unit, gradient,
+            ))
+        return cases
 
 class ParameterMLP(nn.Module):
     def __init__(self):
@@ -194,7 +237,16 @@ def passed(results):
 def fit(args, data, device):
     smoke = args.stage == "mlp-smoke"
     training = data.cases({"train"}, args.case if smoke else None)
+    if args.analytic_cases:
+        training = data.analytical_cases(training, args.analytic_cases)
+    elif args.train_count:
+        if args.train_count > len(training):
+            raise ValueError("requested more CFD training cases than available")
+        ordered = sorted(training, key=lambda case: float(case.inputs[0, 0]))
+        selected = np.rint(np.linspace(0, len(ordered) - 1, args.train_count)).astype(int)
+        training = [ordered[i] for i in selected]
     validation = training if smoke else data.cases({"validation"})
+    updates_per_epoch = args.updates_per_epoch or len(training)
     commit = subprocess.check_output(
         ["git", "--no-optional-locks", "-C", str(REPO), "rev-parse", "HEAD"], text=True
     ).strip()
@@ -208,6 +260,10 @@ def fit(args, data, device):
         "started_at": utc(), "updated_at": utc(), "commit": commit,
         "command": " ".join(sys.argv), "device": str(device), "seed": args.seed,
         "torch": torch.__version__, "epochs": args.epochs,
+        "gradient_scale": data.gradient_scale,
+        "training_source": "analytical" if args.analytic_cases else "CFD",
+        "training_ratios": [float(case.inputs[0, 0]) for case in training],
+        "updates_per_epoch": updates_per_epoch,
         "dataset_index_sha256": data.digest,
         "training_cases": [case.id for case in training],
         "validation_cases": [case.id for case in validation],
@@ -219,13 +275,18 @@ def fit(args, data, device):
         model = ParameterMLP().to(device)
         optimizer = torch.optim.Adam(model.parameters(), lr=0.003)
         order = np.random.default_rng(args.seed)
+        def sample_indices():
+            while True:
+                yield from order.permutation(len(training))
+
+        samples = sample_indices()
         best = math.inf
         with (run_dir / "metrics.jsonl").open("w") as metrics, (run_dir / "run.log").open("w") as log:
             for step in range(1, args.epochs + 1):
                 model.train()
                 losses = []
-                for index in order.permutation(len(training)):
-                    case = training[index]
+                for _ in range(updates_per_epoch):
+                    case = training[next(samples)]
                     optimizer.zero_grad(set_to_none=True)
                     loss = objective(model(case.inputs), case)
                     if not torch.isfinite(loss):
@@ -308,15 +369,26 @@ def main():
     parser.add_argument("--epochs", type=int, default=300)
     parser.add_argument("--seed", type=int, default=20261118)
     parser.add_argument("--device", default="cpu", choices=("cpu", "cuda"))
+    parser.add_argument("--gradient-scale", default="outer-radius", choices=("outer-radius", "gap"))
+    sources = parser.add_mutually_exclusive_group()
+    sources.add_argument("--train-count", type=int, help="evenly spaced subset of the CFD training cases")
+    sources.add_argument("--analytic-cases", type=int, help="use synthetic training profiles")
+    parser.add_argument("--updates-per-epoch", type=int)
     args = parser.parse_args()
     if args.epochs <= 0 or (args.stage == "mlp-evaluate") != bool(args.run):
         parser.error("positive epochs required; --run is required only for mlp-evaluate")
+    controls = (args.train_count, args.analytic_cases, args.updates_per_epoch)
+    if any(value is not None and value <= 0 for value in controls):
+        parser.error("case and update counts must be positive")
+    if args.stage != "mlp" and any(value is not None for value in controls):
+        parser.error("case and update count controls require the mlp stage")
     if args.device == "cuda" and not torch.cuda.is_available():
         parser.error("CUDA is unavailable")
     device = torch.device(args.device)
     torch.set_num_threads(2)
     torch.manual_seed(args.seed)
-    data = AnnulusData(args.dataset, device)
+    scale = read(args.run / "run.json").get("gradient_scale", "outer-radius") if args.run else args.gradient_scale
+    data = AnnulusData(args.dataset, device, scale)
     return held_out(args, data, device) if args.run else fit(args, data, device)
 
 

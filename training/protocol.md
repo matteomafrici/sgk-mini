@@ -60,3 +60,17 @@ Report elapsed wall time, device, seed, dataset digest, source revision,
 per-case metrics, chosen checkpoint and applicable domain on every run.
 Before extending beyond this family, judge whether error levels could change
 a feasibility decision or swap candidate rankings.
+
+## Controlled MLP follow-up
+
+Retain the first outer-radius-scaled CFD baseline. For the scaling control,
+train the same network on the same 11 CFD cases with the gap as the length
+scale in the gradient target. Keep the 300 epochs, seed and gates fixed.
+
+For the data-size experiment, use the gap scale throughout and use the same
+3,300 optimizer updates with 300 validation observations. Compare 4, 7 and
+11 evenly spread CFD training shapes. Separately compare 11 analytical
+profiles at the CFD training ratios and 64 analytical profiles covering
+more of the same permitted ratio range. The analytical generator excludes
+all validation, test and stress bands. All comparisons score the same four
+CFD validation cases. Neither comparison opens the final splits.
