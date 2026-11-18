@@ -60,7 +60,7 @@ def write_report(entries, design, reports):
         "measured errors against it.",
         "",
         "| Case | Ro (mm) | gap (mm) | L (mm) | Q (m3/s) | Re | "
-        "flow err (%) | dpL err (%) | profile mean/max (%) | status |",
+        "flow native/field err (%) | dpL err (%) | profile mean/max (%) | status |",
         "|---|---|---|---|---|---|---|---|---|---|",
     ]
 
@@ -70,6 +70,8 @@ def write_report(entries, design, reports):
         if row.get("profile_mean_pct") is not None:
             profile = f"{row['profile_mean_pct']:.4f} / {row['profile_max_pct']:.4f}"
         flow = "—" if row.get("flow_error_pct") is None else f"{row['flow_error_pct']:.4f}"
+        if row.get("field_flow_error_pct") is not None:
+            flow += f" / {row['field_flow_error_pct']:.4f}"
         dpl = "—" if row.get("dpL_error_pct") is None else f"{row['dpL_error_pct']:.4f}"
         lines.append(
             f"| {row['case_id']} | {row['outer_radius_mm']:.3f} | "
@@ -86,7 +88,8 @@ def write_report(entries, design, reports):
         "below 0.1 %, VDB round trip, requested and produced records agree.",
         "",
         "Reference: guarded inputs, Mesh OK, finite fields, convergence criteria "
-        "met, conservation imbalance < 1e-6, full-circle flow error < 0.05 %, "
+        "met, conservation imbalance < 1e-6, native and saved-field flow errors "
+        "< 0.05 %, "
         "pressure-gradient error < 0.5 %, profile mean < 1 % and max < 2.5 % of "
         "Umax.",
         "",
@@ -96,10 +99,15 @@ def write_report(entries, design, reports):
 
     failed = [e for e in entries if e["status"] != "ok"]
     if not failed:
-        lines.append("None. Every requested case produced a complete record.")
+        lines.append("No failures among the completed attempts.")
     else:
         for entry in failed:
             lines.append(f"- {entry['case_id']}: {entry['failure_reason']}")
+
+    missing = sorted({row["case_id"] for row in design["cases"]}
+                     - {row["case_id"] for row in entries})
+    if missing:
+        lines += ["", "No published attempt for " + ", ".join(missing) + "."]
 
     with open(os.path.join(reports, "pilot-table.md"), "w") as f:
         f.write("\n".join(lines) + "\n")

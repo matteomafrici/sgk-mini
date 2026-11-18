@@ -30,6 +30,7 @@ DLL = os.path.join(REPO, "src", "SGK.Geometry", "bin", "Debug", "net9.0", "SGK.G
 DATASET_ROOT = os.path.expanduser("~/data/datasets/sgk-mini")
 
 SCHEMA = "sgk-mini.dataset-record.v1"
+MIN_GAP_MM = 0.6
 
 # The fluid is fixed for this family; it is part of the case request so a later
 # family can change it without changing the pipeline.
@@ -138,10 +139,11 @@ def admissibility(request, min_radius_voxels=3.0):
 
     if request.inner_radius_mm <= 0.0:
         problems.append("inner radius is not positive")
-    if request.gap_mm < 3.0 * request.voxel_size_mm - 1.0e-12:
+    min_gap = max(MIN_GAP_MM, 3.0 * request.voxel_size_mm)
+    if request.gap_mm < min_gap - 1.0e-12:
         problems.append(
-            f"gap {request.gap_mm:.4f} mm is below 3 voxels "
-            f"({3.0 * request.voxel_size_mm:.4f} mm)"
+            f"gap {request.gap_mm:.4f} mm is below {min_gap:.4f} mm "
+            "(0.6 mm and at least three voxels)"
         )
     if request.inner_radius_mm < min_radius_voxels * request.voxel_size_mm - 1.0e-12:
         problems.append(
@@ -246,13 +248,14 @@ def geometry_checks(request, features, physical):
     add("record is laminar", physical["ReynoldsNumber"] < 2000.0,
         f"Re={physical['ReynoldsNumber']:.2f}")
     reconstructed_gap = physical["OuterRadiusMm"] - physical["InnerRadiusMm"]
-    min_gap = 3.0 * request.voxel_size_mm
-    add("reconstructed gap spans at least three voxels",
+    min_radius = 3.0 * request.voxel_size_mm
+    min_gap = max(MIN_GAP_MM, min_radius)
+    add("reconstructed gap meets the minimum",
         reconstructed_gap >= min_gap - 1e-12,
         f"{reconstructed_gap:.6f} mm vs {min_gap:.6f} mm")
     add("reconstructed inner radius spans at least three voxels",
-        physical["InnerRadiusMm"] >= min_gap - 1e-12,
-        f"{physical['InnerRadiusMm']:.6f} mm vs {min_gap:.6f} mm")
+        physical["InnerRadiusMm"] >= min_radius - 1e-12,
+        f"{physical['InnerRadiusMm']:.6f} mm vs {min_radius:.6f} mm")
 
     return checks
 
@@ -420,7 +423,8 @@ def provenance():
 
 
 def assemble(case_dir, request, features, physical, features_path, physical_path,
-             vdb_path, geometry_checks_list, returncode, report, validation_path):
+             vdb_path, geometry_checks_list, returncode, report, validation_path,
+             source_provenance):
     ok = True
     reasons = []
 
@@ -473,7 +477,7 @@ def assemble(case_dir, request, features, physical, features_path, physical_path
             "checks": checks,
         },
         "artifacts": artifacts,
-        "provenance": provenance(),
+        "provenance": source_provenance,
     }
 
     return record
@@ -501,10 +505,12 @@ def run_case(request, root=DATASET_ROOT):
     record_path = os.path.join(case_dir, "dataset-record.json")
 
     write_json(os.path.join(case_dir, "case-request.json"), request.as_dict())
+    source_provenance = provenance()
     # Preserve the exact tracked edits used by a dirty run alongside its commit.
     with open(os.path.join(case_dir, "source.patch"), "wb") as patch:
         subprocess.run(
-            ["git", "-C", REPO, "diff", "--binary", "HEAD", "--", "src", "pipeline", "validation"],
+            ["git", "-C", REPO, "diff", "--binary", source_provenance["git_commit"],
+             "--", "src", "pipeline", "validation"],
             stdout=patch, check=True,
         )
 
@@ -521,6 +527,7 @@ def run_case(request, root=DATASET_ROOT):
         record = assemble(
             case_dir, request, features, physical, features_path, physical_path,
             vdb_path, geometry_checks_list, returncode, report, validation_path,
+            source_provenance,
         )
     except Exception as exc:
         record = {
@@ -532,7 +539,7 @@ def run_case(request, root=DATASET_ROOT):
             "geometry": None,
             "reference": None,
             "artifacts": _artifact_manifest(case_dir, exclude={"dataset-record.json"}),
-            "provenance": provenance(),
+            "provenance": source_provenance,
         }
     write_json(record_path, record)
     return record
@@ -573,6 +580,7 @@ def index_entries(root):
                 (c["detail"] for c in (record.get("geometry") or {}).get("checks", [])
                  if c["name"] == "volume error below 0.1 %"), None),
             "flow_error_pct": report.get("Q_err_pct"),
+            "field_flow_error_pct": report.get("Q_field_err_pct"),
             "dpL_error_pct": report.get("dpL_err_pct"),
             "profile_mean_pct": (report.get("profile") or {}).get("mean_pct"),
             "profile_max_pct": (report.get("profile") or {}).get("max_pct"),
