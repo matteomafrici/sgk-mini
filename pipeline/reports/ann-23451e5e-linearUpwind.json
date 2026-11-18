@@ -1,0 +1,131 @@
+{
+  "report": {
+    "case_dir": "/home/matteomafrici/data/datasets/sgk-mini/ann-23451e5e/openfoam",
+    "benchmark": "/home/matteomafrici/data/datasets/sgk-mini/ann-23451e5e/geometry/ann-23451e5e.physical-case.json",
+    "time_dir": "8000",
+    "mesh": {
+      "Ri": 0.002280086338803382,
+      "Ro": 0.007936708927154541,
+      "L": 0.014036391258239746,
+      "halfAngleDeg": 1.0,
+      "nX": 80,
+      "nR1": 50,
+      "nR2": 50,
+      "nAng": 1,
+      "totalAngleDeg": 2.0,
+      "cells": 8000
+    },
+    "iterations": 8000,
+    "endTime": 8000,
+    "stopping_reason": "iteration-limit",
+    "residuals": {
+      "Ux": 9.4400499e-07,
+      "Uy": 5.5190698e-05,
+      "Uz": 0.16151584,
+      "p": 0.68103225
+    },
+    "residual_targets": {
+      "p": 0.001,
+      "U": 1e-05
+    },
+    "continuity_global": -6.3345944e-16,
+    "p_field_max_abs": 5.2851024e-08,
+    "p_field_ratio": 6.502058327112054e-05,
+    "max_transverse_ratio": 1.2025884329951524e-06,
+    "stability": {
+      "umax_rel": 2.987139741133648e-06,
+      "q_full_rel": 5.685323220114668e-10,
+      "dpL_rel": 3.3497307256877635e-06
+    },
+    "profile_station_x_m": 0.006930468,
+    "profile": {
+      "mean_pct": 0.005650566879385005,
+      "max_pct": 0.01637178063818143,
+      "rms_pct": 0.006859115908242113,
+      "cells": 100
+    },
+    "umax_cfd": 0.24103325,
+    "umax_bench": 0.24105825571429604,
+    "umax_err_pct": 0.010373307573282432,
+    "dpL_cfd": 57.914909,
+    "dpL_bench": 57.909135254781255,
+    "dpL_err_pct": 0.009970353025207766,
+    "Q_left": -1.5954323e-07,
+    "Q_right": 1.5954323e-07,
+    "Q_imbalance": 0.0,
+    "Q_full_native": 2.87177814e-05,
+    "Q_full_field": 2.871778141985802e-05,
+    "Q_bench": 2.8723614268556243e-05,
+    "Q_err_pct": 0.020306875387299268,
+    "Q_field_err_pct": 0.02030680625247591,
+    "A_mesh_sector": 1.008465538251543e-06,
+    "A_ideal_sector": 1.0086703658300177e-06,
+    "area_defect_pct": -0.020306691404192546,
+    "patch_areas": {
+      "cyclicRight": 1.0084655e-06
+    },
+    "Q_field_vs_native_pct": 6.914886533127045e-08
+  },
+  "checks": [
+    {
+      "name": "Ux residual below target",
+      "passed": true,
+      "detail": "9.4400499e-07 vs 1e-05"
+    },
+    {
+      "name": "p residual below target (or p field negligible)",
+      "passed": false,
+      "detail": "residual 0.68103225 vs 0.001; |p|/(dpL/rho*L) = 6.502e-05"
+    },
+    {
+      "name": "transverse velocity negligible",
+      "passed": false,
+      "detail": "max|Uy,Uz|/Umax = 1.203e-06"
+    },
+    {
+      "name": "continuity closed",
+      "passed": true,
+      "detail": "global = -6.335e-16 m3/s"
+    },
+    {
+      "name": "observables stable",
+      "passed": true,
+      "detail": "umax_rel=2.99e-06, q_full_rel=5.69e-10, dpL_rel=3.35e-06"
+    },
+    {
+      "name": "convergence criteria met",
+      "passed": false,
+      "detail": "stopped at 8000 of 8000 (iteration-limit); convergence is judged on the residuals and observables above, not on the stop reason"
+    },
+    {
+      "name": "conservation",
+      "passed": true,
+      "detail": "imbalance = 0.000e+00"
+    },
+    {
+      "name": "full-circle flow rate",
+      "passed": true,
+      "detail": "0.0203 % < 0.05 % (native); field integral 0.0203 %"
+    },
+    {
+      "name": "pressure gradient",
+      "passed": true,
+      "detail": "0.0100 % < 0.5 %"
+    },
+    {
+      "name": "peak velocity",
+      "passed": true,
+      "detail": "0.0104 % < 1.0 %"
+    },
+    {
+      "name": "mean profile error",
+      "passed": true,
+      "detail": "0.0057 % < 1.0 %"
+    },
+    {
+      "name": "max profile error",
+      "passed": true,
+      "detail": "0.0164 % < 2.5 %"
+    }
+  ]
+}

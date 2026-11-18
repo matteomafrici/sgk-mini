@@ -1,0 +1,27 @@
+================================================================
+  Annular Poiseuille CFD validation (2D wedge, axial periodic)
+================================================================
+  Ri=2.2801 mm  Ro=7.9367 mm  wedge=2.000 deg  cells=8000
+  time dir: 8000  (iteration-limit)
+  mesh sector area defect: -0.0203 %
+
+  metric                                      value
+  ---------------------------------- --------------
+  profile mean |err|/Umax [%]              0.005651
+  profile max  |err|/Umax [%]              0.016372
+  profile rms  |err|/Umax [%]              0.006859
+  peak velocity error [%]                  0.010373
+  pressure-gradient error [%]              0.009970
+  flow-rate error (native) [%]             0.020307
+  flow-rate error (field) [%]              0.020307
+  conservation imbalance [1]               0.000000
+
+  dpL_cfd = 57.914909 Pa/m (bench 57.909135)
+  Q_native = 2.871778140e-05 m3/s, Q_field = 2.871778142e-05 m3/s (bench 2.872361427e-05)
+
+  CHECKS FAILED:
+    - p residual below target (or p field negligible): residual 0.68103225 vs 0.001; |p|/(dpL/rho*L) = 6.502e-05
+    - transverse velocity negligible: max|Uy,Uz|/Umax = 1.203e-06
+    - convergence criteria met: stopped at 8000 of 8000 (iteration-limit); convergence is judged on the residuals and observables above, not on the stop reason
+
+  report written: ../../experiments/ann-23451e5e-linearUpwind.json

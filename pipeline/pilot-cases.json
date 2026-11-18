@@ -1,0 +1,147 @@
+{
+  "schema": "sgk-mini.pilot-cases.v1",
+  "seed": 20261118,
+  "algorithm": "Latin hypercube over [Ro, gap, L, log10(Q)] in the unit cube; feasibility filter; greedy maximin selection of the requested count. The result is a subset of an LHS, not a strict LHS after constraint handling.",
+  "pool_size": 400,
+  "selected_count": 8,
+  "bounds": {
+    "outer_radius_mm": [
+      6.0,
+      20.0
+    ],
+    "gap_mm": [
+      0.6,
+      6.0
+    ],
+    "length_mm": [
+      10.0,
+      60.0
+    ],
+    "flow_rate_m3_s": [
+      1e-06,
+      3e-05
+    ]
+  },
+  "voxel_size_mm": 0.2,
+  "constraints": {
+    "gap_min_mm": 0.6000000000000001,
+    "inner_radius_min_mm": 0.6000000000000001,
+    "reynolds_max": 2000,
+    "note": "inner radius >= 3 voxels is an additional geometry-admissibility bound: a radius below three voxels is not a measurement of the requested shape."
+  },
+  "minimum_normalized_distance": 0.8874812169452839,
+  "duplicate_policy": "a normalized Euclidean distance below 0.05 in the unit cube is treated as a near-duplicate and is not accepted",
+  "grouping_policy": "the normalized annular field depends only on Ri/Ro; Q scales it and L does not change it. Groups are therefore defined by round(Ri/Ro, 4). A future train/test split must keep a group intact; this pilot assigns no split because nothing is trained.",
+  "rejected_counts": {
+    "gap below 3 voxels": 0,
+    "inner radius below 3 voxels": 0,
+    "Reynolds >= 2000": 0,
+    "other": 0
+  },
+  "cases": [
+    {
+      "case_id": "ann-d6d594b3",
+      "outer_radius_mm": 18.656731339800125,
+      "inner_radius_mm": 18.02891121495797,
+      "gap_mm": 0.6278201248421569,
+      "length_mm": 58.66643017986874,
+      "flow_rate_m3_s": 1.2356509209262629e-06,
+      "voxel_size_mm": 0.2,
+      "density_kg_m3": 1000.0,
+      "viscosity_pa_s": 0.001,
+      "mean_velocity_m_s": 0.017077117292322665,
+      "reynolds": 21.442715820820343
+    },
+    {
+      "case_id": "ann-23451e5e",
+      "outer_radius_mm": 7.9379681152016115,
+      "inner_radius_mm": 2.2772970201709555,
+      "gap_mm": 5.660671095030656,
+      "length_mm": 14.036391694620775,
+      "flow_rate_m3_s": 2.8723614268556243e-05,
+      "voxel_size_mm": 0.2,
+      "density_kg_m3": 1000.0,
+      "viscosity_pa_s": 0.001,
+      "mean_velocity_m_s": 0.15811448160266492,
+      "reynolds": 1790.0681514279233
+    },
+    {
+      "case_id": "ann-8c4c0932",
+      "outer_radius_mm": 7.05176601243422,
+      "inner_radius_mm": 5.8598783265437575,
+      "gap_mm": 1.1918876858904617,
+      "length_mm": 56.20538089174188,
+      "flow_rate_m3_s": 2.09640414084419e-05,
+      "voxel_size_mm": 0.2,
+      "density_kg_m3": 1000.0,
+      "viscosity_pa_s": 0.001,
+      "mean_velocity_m_s": 0.4336189452887917,
+      "reynolds": 1033.650162517041
+    },
+    {
+      "case_id": "ann-073248ac",
+      "outer_radius_mm": 6.514269243399532,
+      "inner_radius_mm": 4.974565369528552,
+      "gap_mm": 1.5397038738709803,
+      "length_mm": 21.71085399746466,
+      "flow_rate_m3_s": 1.029277176288606e-06,
+      "voxel_size_mm": 0.2,
+      "density_kg_m3": 1000.0,
+      "viscosity_pa_s": 0.001,
+      "mean_velocity_m_s": 0.018521207181300924,
+      "reynolds": 57.0343488916321
+    },
+    {
+      "case_id": "ann-35ea69f5",
+      "outer_radius_mm": 19.307644456007957,
+      "inner_radius_mm": 18.044243516773626,
+      "gap_mm": 1.263400939234331,
+      "length_mm": 23.419616217997863,
+      "flow_rate_m3_s": 2.0422700354594108e-05,
+      "voxel_size_mm": 0.2,
+      "density_kg_m3": 1000.0,
+      "viscosity_pa_s": 0.001,
+      "mean_velocity_m_s": 0.13775568759917486,
+      "reynolds": 348.0813301953373
+    },
+    {
+      "case_id": "ann-d16c486a",
+      "outer_radius_mm": 17.39395018540151,
+      "inner_radius_mm": 11.727749893110671,
+      "gap_mm": 5.66620029229084,
+      "length_mm": 27.725540076832957,
+      "flow_rate_m3_s": 1.875924836630792e-06,
+      "voxel_size_mm": 0.2,
+      "density_kg_m3": 1000.0,
+      "viscosity_pa_s": 0.001,
+      "mean_velocity_m_s": 0.003618736106672024,
+      "reynolds": 41.008967170696884
+    },
+    {
+      "case_id": "ann-0995b4f2",
+      "outer_radius_mm": 13.977377509882919,
+      "inner_radius_mm": 8.706562387114289,
+      "gap_mm": 5.270815122768629,
+      "length_mm": 52.83707898698664,
+      "flow_rate_m3_s": 2.5184197260084414e-05,
+      "voxel_size_mm": 0.2,
+      "density_kg_m3": 1000.0,
+      "viscosity_pa_s": 0.001,
+      "mean_velocity_m_s": 0.06704740420597526,
+      "reynolds": 706.7889440624707
+    },
+    {
+      "case_id": "ann-38d5f169",
+      "outer_radius_mm": 9.04433870437233,
+      "inner_radius_mm": 5.071793284034033,
+      "gap_mm": 3.9725454203382964,
+      "length_mm": 58.049376554017705,
+      "flow_rate_m3_s": 1.7393390892942229e-06,
+      "voxel_size_mm": 0.2,
+      "density_kg_m3": 1000.0,
+      "viscosity_pa_s": 0.001,
+      "mean_velocity_m_s": 0.009873015132776062,
+      "reynolds": 78.44200210128048
+    }
+  ]
+}
