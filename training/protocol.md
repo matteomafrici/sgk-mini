@@ -61,6 +61,24 @@ per-case metrics, chosen checkpoint and applicable domain on every run.
 Before extending beyond this family, judge whether error levels could change
 a feasibility decision or swap candidate rankings.
 
+## References for the experimental choices
+
+- [GINO (NeurIPS 2023)](https://proceedings.neurips.cc/paper_files/paper/2023/file/70518ea42831f02afc3a2828993935ad-Paper-Conference.pdf)
+  motivates geometry-to-query operators. The reported vehicle surface-pressure
+  experiment leaves volume-velocity evaluation to our own tests.
+- [PINO](https://authors.library.caltech.edu/records/06m4r-8jf10) motivates
+  adding physics constraints in a measured comparison with supervised training.
+- [AirfRANS (NeurIPS 2022)](https://proceedings.neurips.cc/paper_files/paper/2022/hash/94ab7b23a345f93333eac8748a66c763-Abstract-Datasets_and_Benchmarks.html)
+  and [structured-shift experiments (TMLR 2026)](https://openreview.net/pdf/5f9a8276e0927f1e355598c2f3fbb0f21e74f0e5.pdf)
+  motivate separate tests on withheld geometry or physical conditions.
+- [NASA CFD verification guidance](https://www.grc.nasa.gov/www/wind/valid/tutorial/verassess.html)
+  motivates keeping grid, iterative, conservation and benchmark checks
+  separate from errors introduced by a learned model.
+- [RIBBO (IJCAI 2025)](https://www.ijcai.org/proceedings/2025/994) motivates
+  studying learned search separately from field prediction. [Constrained
+  Bayesian optimization](https://proceedings.mlr.press/v32/gardner14.html)
+  provides a comparator when evaluating a learned search policy.
+
 ## Controlled MLP follow-up
 
 Retain the first outer-radius-scaled CFD baseline. For the scaling control,

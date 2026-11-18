@@ -49,6 +49,9 @@ Use this note to resume the mini.
 - The [read-only workbench](../workbench/README.md) displays the actual
   dataset, geometry, reference checks, attempt logs and Git diffs. Its run
   receipt format can display trainer logs and metrics when they are published.
+- PhysicsNeMo 2.2.2 passed a synthetic FNO forward and backward CUDA check
+  in the separate `sgk-pnm` environment. The recorded Mini baselines use
+  PyTorch and NeuralOperator in `sgk-neuralop`.
 - See the [batch report](../pipeline/reports/batch-v1.md) for the outcome,
   evidence and data paths.
 - The eight executed inputs are in
@@ -88,17 +91,22 @@ and a stated calibration and uncertainty model.
 
 ## Next steps
 
-1. Define field, wall, integrated flow and driving-gradient acceptance
-   before training. Keep periodic pressure and the driving gradient distinct.
-2. Read the prepared arrays without recomputing the split. Group evaluation
-   by physical case. Use per-case volume weights when evaluating the field,
-   and apply and invert the recorded physical normalization.
-3. Define the model conditioning and surface sampling for the first
-   supervised experiment. Keep these transforms identical at inference.
-4. Train the simplest supervised controls and a small geometry-aware model.
-   Check one-case reconstruction first, then held-out geometry, wall error,
-   mass balance and the engineering quantities used by search.
-5. Close the loop with a small L3 experiment and the structured L4 entry
+1. Build the first GINO input adapter on one training case. Fix deterministic
+   VDB surface sampling, coordinates, normalization and grid resolution.
+   Verify the encoder and decoder neighbourhood coverage, especially at
+   native CFD queries near the walls. Measure graph construction time,
+   update time and peak memory. If caching the neighbourhoods, test cached
+   and uncached equality on the same inputs.
+2. Finish one-case reconstruction with the existing field, wall, peak, flow
+   and driving-gradient gates. Publish a workbench receipt, the checkpoint
+   and a replay with the same input transforms. Produce a profile comparison
+   against native CFD and the analytical solution. If a gate fails, record
+   the failure and resolve its cause before scaling the run.
+3. Compare GINO on the 11 training and four validation cases with the MLP and
+   FNO. Complete a common evaluation entry point for the three frozen
+   checkpoints before opening the test and stress splits. Keep the optional
+   physics-loss comparison separate from architecture and data changes.
+4. Close the loop with a small L3 experiment and the structured L4 entry
    point. Inject a plausible surrogate error and confirm that reference
    rejection leads to another proposal or a clear stop. Record one
    independently reproducible end-to-end run before expanding the physics.
@@ -109,6 +117,9 @@ This is the project-local handoff. The solver evidence stays in
 `pipeline/reports/`, the generated fields stay under
 `~/data/datasets/sgk-mini/`, and the main SGK README remains the source for
 the long-term scope and decisions on the first propulsion application.
+See the [environment and visualization notes](sgk-environment-notes.md)
+for the four reusable resource groups, the roles of the candidate NVIDIA
+tools, and a bounded first facility experiment.
 
 ## Open questions
 
