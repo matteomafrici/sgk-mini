@@ -28,8 +28,11 @@ cannot fail is not a piece, it is decoration.
 ### D0 — Repair the reference case (decision, before any label exists)
 
 The current mesh spans the wedge in three cells of 10°, so its cross-section is a
-polygon with **0.507 % less flow area** than the annulus. That bias goes straight
-into every label.
+polygon with **0.507 % less flow area** than the annulus. That is a structural
+bias in every label: it is not the explanation of any current metric (a stale
+input masked it for a while, and that is now fixed), but it is a difference
+between the labelled geometry and the real one, and the dataset should not
+inherit it.
 
 | Option | Bias in labels | Cost |
 |---|---|---|

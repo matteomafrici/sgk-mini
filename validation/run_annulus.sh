@@ -42,6 +42,9 @@ if [ ! -f "$REPO/output/hollow-cylinder.physical-case.json" ]; then
     exit 1
 fi
 
+echo "== check inputs =="
+"$PYTHON" "$REPO/validation/validate_annulus.py" --check-inputs
+
 echo "== blockMesh =="
 ( cd "$CASE" && blockMesh > log.blockMesh 2>&1 )
 echo "== simpleFoam =="

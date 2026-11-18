@@ -148,16 +148,15 @@ dotnet run --project src/SGK.Geometry/ -- --auto-exit
   - wide gap (Ro = 30 mm, Re ≈ 17), as a sensitivity test.
   - Recommended mesh: cyclic periodic boundary conditions with
     `meanVelocityForce`, 80 × 100 × 3 cells, radial grading 1.5.
-  - Results at 0.2 mm voxel: peak velocity (Umax) error 0.28%, pressure-gradient
-    error 1.04%, flow-rate error 0.50%, mean near-wall profile error 3.65%.
-    The flow-rate error is fully explained by the angular discretisation: three
-    cells over a 30° wedge make a polygonal cross-section with 0.507% less area
-    than the annulus. The near-wall profile error is systematic and inherent to
-    second-order finite-volume discretization at this aspect ratio.
-  - The previous, better-looking numbers (0.011% / 0.74% / 0.79%) were measured
-    at 0.3 mm voxel, where the reconstructed radii were 3 µm off and partly
-    cancelled the mesh bias. Accurate geometry exposes the solver's own error
-    instead of hiding it.
+  - Results at 0.2 mm voxel: peak velocity (Umax) error 0.011%, pressure-gradient
+    error 0.74%, flow-rate error 0.78%, mean near-wall profile error 3.64%. The
+    near-wall profile error is systematic and inherent to second-order
+    finite-volume discretization at this aspect ratio.
+  - Two literal numbers connect the record to the solver: the radii in
+    `blockMeshDict` and `Ubar` in `fvOptions`. Both are checked against the
+    record before the mesh is built, and the validation refuses to run if they
+    disagree. They were added after a stale `Ubar` produced a 0.29% shift in
+    every metric that looked like a physics regression.
 - This validation is reproducible from the repository: the cyclic case lives in
   `validation/openfoam/annulus_cyclic/`, and `scripts/check_analytic.py`
   regenerates and checks the analytical records against committed expectations.
@@ -178,8 +177,7 @@ moved to `sgk-mini.physical-record.v2` to mark the change:
   The sampled value is still recorded, as `SampledMaxVelocityMPerS` and
   `SampledMaxVelocityRadiusMm`, and the record validator asserts that it cannot
   exceed the continuous maximum. This moved the peak-velocity error against CFD
-  from 0.023 % to 0.011 % at the then-current 0.3 mm voxel size; at 0.2 mm the
-  mesh discretisation dominates instead, and the measured error is 0.28 %.
+  from 0.023 % to 0.011 %.
 - **Exit status.** A failure now exits non-zero. Exceptions raised inside the
   PicoGK task thread are captured there, since an exception escaping that thread
   is not guaranteed to reach the outer handler. Verified on two paths: a geometry
@@ -188,13 +186,17 @@ moved to `sgk-mini.physical-record.v2` to mark the change:
 ## What remains open
 
 - The mesh still represents the annulus as a 30° wedge in three cells, so its
-  cross-section is a polygon with 0.507 % less area than the real annulus. This
-  is now measured instead of hidden, but it is a systematic bias in the
-  reference labels. A 2D axisymmetric (`wedge`) mesh would remove it and cost a
-  third of the cells.
+  cross-section is a polygon with 0.507 % less area than the real annulus. That
+  is a structural property of the reference labels, not a measured error: it
+  does not explain any of the numbers above, but it is a bias the dataset should
+  not inherit. A 2D axisymmetric (`wedge`) mesh would remove it and cost a third
+  of the cells.
 - The reconstructed radii still differ from the nominal ones by 0.7 µm at
   0.2 mm voxel. That residual is the discretisation of the representation, and
   it is reported rather than corrected.
+- The flow-rate error of 0.78 % is not yet attributed. It is no longer polluted
+  by a stale input, but the split between the polygonal section, the radial
+  integration of a steep profile and the wall treatment has not been measured.
 
 ## What is missing
 

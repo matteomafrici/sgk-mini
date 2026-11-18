@@ -52,36 +52,50 @@ numbers) and the benchmark from `output/hollow-cylinder.physical-case.json`.
 
 | Metric | Value |
 |---|---|
-| mean \|err\| / Umax | 3.65 % |
-| max \|err\| / Umax | 7.14 % |
-| Umax error | 0.28 % |
-| pressure-gradient error | 1.04 % |
-| flow-rate error | 0.50 % |
+| mean \|err\| / Umax | 3.64 % |
+| max \|err\| / Umax | 7.15 % |
+| Umax error | 0.011 % |
+| pressure-gradient error | 0.74 % |
+| flow-rate error | 0.78 % |
 
 The peak velocity is compared against the continuous analytical maximum
 (evaluated where `du/dr = 0`), not against the largest of the 17 profile
 samples. The sampled peak understates the true peak by about 0.03 % and is kept
 in the record as `SampledMaxVelocityMPerS` for traceability.
 
-**Why the flow-rate error is 0.50 % and not noise.** The wedge spans 30° in
-three cells of 10°, so the cross-section is a polygon, not an annulus. A chord
-over 10° encloses `sin(θ)/θ = 0.99493` of the circular sector, i.e. the mesh has
-**0.507 % less flow area** than the geometry it represents. The measured
-flow-rate error is 0.4986 %. These are the same number: the error is fully
-explained by the angular discretisation, and it would disappear with a proper
-2D axisymmetric (`wedge`) mesh or with more angular cells.
+**Two literal numbers connect the geometry record to the CFD case**, and both
+are checked before the mesh is built:
 
-This also explains why the pressure-gradient error went from 0.74 % to 1.04 %
-when the voxel size moved to 0.2 mm. The previous 0.3 mm reconstruction produced
-radii 3 µm off (Ri 8.0030 instead of 8.0000), whose area was 0.29 % too small;
-that error happened to cancel part of the 0.51 % mesh bias. With the geometry
-now accurate to 0.1 µm, the mesh bias is no longer masked, and the honest number
-is the larger one.
+| Constant | Where | Why it matters |
+|---|---|---|
+| `Ri`, `Ro` | `system/blockMeshDict` | the solver would compute a different shape than the record describes |
+| `Ubar` | `constant/fvOptions` | the solver would impose a different mean velocity, shifting every result by that amount |
 
-**`blockMeshDict` carries the radii as literal numbers.** `validate_annulus.py`
-checks them against the reconstructed radii in the benchmark record and fails
-with an explicit message if they drift, so the mesh cannot silently represent a
-different geometry.
+`validate_annulus.py --check-inputs` runs before `blockMesh` and refuses to
+continue if either disagrees with `output/hollow-cylinder.physical-case.json`.
+
+**How this guard was earned.** When the voxel size moved from 0.3 to 0.2 mm the
+radii were updated but `Ubar` was not, and it kept the mean velocity of the
+previous record: 0.0088648 m/s against the required 0.0088393 m/s, i.e. 0.29 %
+too high. Every metric moved by about that amount and it looked like a
+regression of the mesh or of the geometry:
+
+| Metric | with the stale `Ubar` | with `Ubar` consistent |
+|---|---|---|
+| Umax error | 0.278 % | 0.011 % |
+| pressure-gradient error | 1.04 % | 0.74 % |
+| flow-rate error | 0.50 % | 0.78 % |
+
+Nothing was wrong with the mesh or with the geometry. A constant copied by hand
+had gone stale, and the only symptom was that the comparison moved quietly.
+
+The earlier explanation recorded here — that the previous numbers were flattered
+by a 3 µm radius error cancelling a polygonal-area bias of 0.507 % — was **wrong**
+and has been removed. Both the mesh and the benchmark used the same radii in
+both cases, so that error cancelled in both and could not have masked anything.
+The 0.507 % area difference between the polygonal wedge section and the true
+annulus does exist as a geometric property of the mesh, but it is not the
+explanation of the measured flow-rate error.
 
 The near-wall bias is systematic and inherent to second-order finite-volume
 discretization at this aspect ratio (~35–55), not an implementation defect.

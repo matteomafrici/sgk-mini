@@ -177,17 +177,77 @@ def check_mesh_radii(Ri_bench, Ro_bench, tol_rel=1e-6):
                 f"says {bench:.9f} m (relative difference {rel:.2e})"
             )
 
+    return problems
+
+
+def check_imposed_velocity(Ubar_bench, tol_rel=1e-6):
+    """fvOptions carries the imposed mean velocity as a literal number too. A stale
+    value there biases every result by that amount, and the only symptom is that
+    the comparison quietly moves."""
+    fv_options = os.path.join(CASE, "constant", "fvOptions")
+    value = None
+
+    with open(fv_options) as f:
+        for line in f:
+            stripped = line.split("//")[0].strip()
+            if stripped.startswith("Ubar"):
+                value = float(stripped.split("(")[1].split(")")[0].split()[0])
+                break
+
+    if value is None:
+        return [f"Ubar not found in {fv_options}"]
+
+    rel = abs(value - Ubar_bench) / abs(Ubar_bench)
+    if rel > tol_rel:
+        return [
+            f"Ubar in fvOptions = {value:.9f} m/s, benchmark record says "
+            f"{Ubar_bench:.9f} m/s (relative difference {rel:.2e})"
+        ]
+
+    return []
+
+
+def check_inputs():
+    """Both connections between the geometry record and the CFD case are literal
+    numbers in dictionaries. They are checked together because they fail the same
+    way: silently, and only in the comparison."""
+    if not os.path.isfile(BENCH):
+        raise SystemExit(
+            f"Benchmark not found: {BENCH}\n"
+            "Run the geometry stage first:  dotnet run --project src/SGK.Geometry/ -- --auto-exit"
+        )
+
+    with open(BENCH) as f:
+        bench = json.load(f)
+
+    problems = check_mesh_radii(
+        bench["InnerRadiusMm"] / 1000.0,
+        bench["OuterRadiusMm"] / 1000.0,
+    )
+    problems += check_imposed_velocity(bench["MeanVelocityMPerS"])
+
     if problems:
         raise SystemExit(
-            "Mesh and geometry record disagree:\n  "
+            "CFD case and geometry record disagree:\n  "
             + "\n  ".join(problems)
-            + "\n\nUpdate system/blockMeshDict from output/hollow-cylinder.physical-case.json,"
-            "\nor re-run the geometry stage if the voxel size changed."
+            + "\n\nUpdate system/blockMeshDict and/or constant/fvOptions from "
+            "output/hollow-cylinder.physical-case.json, or re-run the geometry "
+            "stage if the voxel size changed."
         )
+
+    print(
+        "CFD case inputs match the geometry record: "
+        f"Ri={bench['InnerRadiusMm']:.6f} mm, Ro={bench['OuterRadiusMm']:.6f} mm, "
+        f"Ubar={bench['MeanVelocityMPerS']:.9f} m/s"
+    )
 
 
 def main():
     check = "--check" in sys.argv
+
+    if "--check-inputs" in sys.argv:
+        check_inputs()
+        return 0
 
     if not os.path.isfile(BENCH):
         raise SystemExit(
@@ -206,7 +266,7 @@ def main():
     Umax_b = bench["MaxVelocityMPerS"]
     Q_b = bench["VolumetricFlowRateM3PerS"]
 
-    check_mesh_radii(Ri, Ro)
+    check_inputs()
 
     time_name = latest_time_dir(CASE)
     if time_name is None or time_name == "0":

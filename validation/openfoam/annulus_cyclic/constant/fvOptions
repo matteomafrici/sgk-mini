@@ -21,5 +21,9 @@ momentumSource
     active          true;
     selectionMode   all;
     fields          (U);
-    Ubar            (0.0088648 0 0);
+
+    // Must match MeanVelocityMPerS in output/hollow-cylinder.physical-case.json.
+    // validate_annulus.py --check-inputs compares them and refuses to run if they
+    // drift, because a stale value here silently biases every comparison.
+    Ubar            (0.00883932269380431 0 0);
 }
