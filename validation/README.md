@@ -47,58 +47,81 @@ numbers) and the benchmark from `output/hollow-cylinder.physical-case.json`.
 
 ### Reference result (Omarchy, 2026-11-18)
 
-80×100×3 cells, cyclic periodic, 2000 iterations (~86 s serial), voxel size
-0.2 mm:
+2° axisymmetric wedge, 80×100×1 cells, axial periodicity, 8000 iterations
+(~98 s serial), voxel size 0.2 mm:
 
 | Metric | Value |
 |---|---|
-| mean \|err\| / Umax | 3.64 % |
-| max \|err\| / Umax | 7.15 % |
-| Umax error | 0.011 % |
-| pressure-gradient error | 0.74 % |
-| flow-rate error | 0.78 % |
+| mean \|err\| / Umax | 0.0046 % |
+| max \|err\| / Umax | 0.0071 % |
+| Umax error | 0.010 % |
+| pressure-gradient error | 0.0095 % |
+| flow-rate error (native flux) | 0.0203 % |
+| mesh sector-area defect | −0.0203 % |
+
+The flow-rate error is now the measured geometric defect of the finite wedge,
+not an unattributed residual: the end faces are polygons with
+`sin(2°)/2° = 0.0203 %` less area than the true annulus, and the native patch
+flux misses Q by the same 0.0203 %. The defect is measured from the cell
+volumes and reported, not corrected away.
+
+The profile is compared at the radius of the radial cell faces. The raw cell
+centre of the innermost cell sits at `r_face·cos(1°)`, which is *inside* the
+ideal wall; evaluating the analytical solution there is an extrapolation outside
+its domain. The audited 3.64 %/7.15 % profile error came from that mismatch, not
+from the finite-volume scheme, and the claim that it was inherent second-order
+error was wrong. With a consistent radius the remaining error is 0.0046 % on
+average and 0.0071 % at worst, measured on the new mesh.
 
 The peak velocity is compared against the continuous analytical maximum
 (evaluated where `du/dr = 0`), not against the largest of the 17 profile
 samples. The sampled peak understates the true peak by about 0.03 % and is kept
 in the record as `SampledMaxVelocityMPerS` for traceability.
 
-**Two literal numbers connect the geometry record to the CFD case**, and both
-are checked before the mesh is built:
+**Every literal number that connects the geometry record to the CFD case** is
+checked before the mesh is built:
 
 | Constant | Where | Why it matters |
 |---|---|---|
-| `Ri`, `Ro` | `system/blockMeshDict` | the solver would compute a different shape than the record describes |
-| `Ubar` | `constant/fvOptions` | the solver would impose a different mean velocity, shifting every result by that amount |
+| `Ri`, `Ro` | `system/blockMeshDict` | the solver would compute a different shape |
+| `L` | `system/blockMeshDict` | the pressure drop would be scaled to another length |
+| `nu` | `constant/transportProperties` | the profile would be the solution for another fluid |
+| `Ubar` (all three components) | `constant/fvOptions` | the solver would impose a different mean velocity, including a transverse one the analytical case does not have |
+| `CaseId` | `case.json` | a swapped or stale case would be compared against another record |
 
 `validate_annulus.py --check-inputs` runs before `blockMesh` and refuses to
-continue if either disagrees with `output/hollow-cylinder.physical-case.json`.
+continue if any of them disagrees with
+`output/hollow-cylinder.physical-case.json`. `validation/test_guards.py` breaks
+each one on purpose and requires the guard to reject it.
 
 **How this guard was earned.** When the voxel size moved from 0.3 to 0.2 mm the
 radii were updated but `Ubar` was not, and it kept the mean velocity of the
 previous record: 0.0088648 m/s against the required 0.0088393 m/s, i.e. 0.29 %
-too high. Every metric moved by about that amount and it looked like a
-regression of the mesh or of the geometry:
+too high. On the old 30° mesh every metric moved by about that amount:
 
-| Metric | with the stale `Ubar` | with `Ubar` consistent |
+| Metric (old 30° mesh) | with the stale `Ubar` | with `Ubar` consistent |
 |---|---|---|
 | Umax error | 0.278 % | 0.011 % |
 | pressure-gradient error | 1.04 % | 0.74 % |
 | flow-rate error | 0.50 % | 0.78 % |
 
 Nothing was wrong with the mesh or with the geometry. A constant copied by hand
-had gone stale, and the only symptom was that the comparison moved quietly.
+had gone stale, and the only symptom was that the comparison moved quietly. An
+earlier explanation — that the previous numbers were flattered by a 3 µm radius
+error cancelling a 0.507 % area bias — was wrong and has been removed: mesh and
+benchmark used the same radii in both cases, so that error cancelled in both.
 
-The earlier explanation recorded here — that the previous numbers were flattered
-by a 3 µm radius error cancelling a polygonal-area bias of 0.507 % — was **wrong**
-and has been removed. Both the mesh and the benchmark used the same radii in
-both cases, so that error cancelled in both and could not have masked anything.
-The 0.507 % area difference between the polygonal wedge section and the true
-annulus does exist as a geometric property of the mesh, but it is not the
-explanation of the measured flow-rate error.
+### Convergence
 
-The near-wall bias is systematic and inherent to second-order finite-volume
-discretization at this aspect ratio (~35–55), not an implementation defect.
+Reaching `endTime` is not counted as convergence. The validator records the
+residuals, the iteration count and the stopping reason, and requires the `Ux`
+residual below its target, the `p` residual below its target (or a pressure
+field negligible against `dpL/rho·L`), negligible absolute transverse velocity,
+a closed continuity error, and stable `dpL`, `Q` and `Umax` between the last two
+saved times. The p qualification is recorded in `docs/pilot-checks.md`: in this
+periodic case `p` is ~1e-15 because the gradient lives in `meanVelocityForce`,
+so its normalised residual divides by a near-zero denominator and cannot reach
+`1e-3`.
 
 ## Figures
 

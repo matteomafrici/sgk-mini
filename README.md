@@ -11,7 +11,7 @@ solution. The figures below are committed in the repository, so you can read
 them without cloning or running anything.
 
 **Values — CFD against analytical** (annulus Ri=8.00 mm, Ro=10.00 mm, Re≈35,
-80×100×3 cells, 2000 iterations):
+2° axisymmetric wedge, 80×100×1 cells, 8000 iterations):
 
 ![validation values](validation/figures/04_metrics_summary.png)
 
@@ -21,7 +21,8 @@ developed, so the profile is the same everywhere:
 ![velocity profile](validation/figures/01_velocity_profile.png)
 
 **Axial velocity field** on the meridional plane (CFD, analytical, and their
-difference — the residual is the systematic near-wall finite-volume bias):
+difference — after comparing at consistent radii the residual is the remaining
+discretisation error, and the earlier "inherent near-wall bias" reading is gone):
 
 ![velocity field](validation/figures/02_fields_velocity.png)
 
@@ -75,13 +76,15 @@ Ro = 10.0000 mm in the reference run at 0.2 mm voxel, against a nominal 8 mm and
 
 ## Outputs
 
-Everything generated lands in `output/`, which is gitignored:
+By default everything generated lands in `output/`, which is gitignored. The
+file names use the case id, so a configured case writes
+`<case-id>.vdb`, `<case-id>.features.json` and `<case-id>.physical-case.json`:
 
 | File | Contents |
 |---|---|
 | `hollow-cylinder.vdb` | voxel field, saved and reloaded for the round-trip check |
-| `hollow-cylinder.features.json` | schema and case identifiers, volume, bounding box |
-| `hollow-cylinder.physical-case.json` | reconstructed radii, fluid properties, mean velocity, Reynolds number, pressure gradient and drop, 17 velocity samples, continuous and sampled peak velocity, wall shear stresses |
+| `hollow-cylinder.features.json` | schema, case id, voxel size, volume, bounding box |
+| `hollow-cylinder.physical-case.json` | reconstructed radii, fluid properties, mean velocity, Reynolds number, pressure gradient and drop, 17 velocity samples, continuous and sampled peak velocity, signed wall shear stresses |
 
 ## Environment
 
@@ -94,6 +97,8 @@ Everything generated lands in `output/`, which is gitignored:
   artifact is machine-specific and not versioned — it must be rebuilt on any
   new machine. See the `sgk-mini` notes in the vault for the exact procedure.
 - OpenFOAM v2606 (core) for the CFD cross-check, available via its `etc/bashrc`.
+- numpy for the validation, and matplotlib for the committed figures. matplotlib
+  is a plotting-only dependency: the numerical checks run without it.
 
 ## Build and run
 
@@ -105,17 +110,19 @@ Flags:
 
 - `--auto-exit` — close the PicoGK viewer automatically when the task ends
   (needed for scripts/CI; without it the viewer stays open until closed).
-- `--config <file.json>` — override the geometry, e.g.
-  `{ "OuterRadiusMm": 12.0, "InnerRadiusMm": 9.0, "LengthMm": 40.0,
-  "VoxelSizeMm": 0.2 }`.
+- `--config <file.json>` — override the case inputs, e.g.
+  `{ "CaseId": "ann-001", "OuterRadiusMm": 12.0, "InnerRadiusMm": 9.0,
+  "LengthMm": 40.0, "VoxelSizeMm": 0.2, "VolumetricFlowRateM3PerS": 2e-6,
+  "OutputDirectory": "/home/you/data/datasets/sgk-mini/ann-001" }`.
   Defaults reproduce the validated 20/16 mm × 50 mm hollow cylinder at 0.2 mm
-  voxel. `VoxelSizeMm` is a case parameter because it bounds which features the
-  geometry can represent: a feature needs a few voxels across to be honest, so
-  at 0.2 mm nothing below about 0.6 mm is resolved. See
+  voxel. Unknown properties are rejected; a misspelled field is an error, not a
+  silent default. `VoxelSizeMm` is a case parameter because it bounds which
+  features the geometry can represent: a feature needs a few voxels across to be
+  honest, so at 0.2 mm nothing below about 0.6 mm is resolved. See
   `validation/voxel-resolution-curve.md` for the measured trade-off.
 
-Output always lands in the repository's `output/` directory, regardless of the
-working directory the program is launched from.
+Without `OutputDirectory`, output lands in the repository's `output/` directory,
+regardless of the working directory the program is launched from.
 
 ## Reproduce the validation
 
@@ -142,21 +149,24 @@ dotnet run --project src/SGK.Geometry/ -- --auto-exit
   flow in a concentric annulus, with both global targets (mean velocity,
   Reynolds number, pressure gradient and drop) and local targets (velocity
   profile, maximum velocity, wall shear stress on both walls).
-- OpenFOAM `simpleFoam` validated against that analytical benchmark on two
-  geometric configurations:
+- OpenFOAM `simpleFoam` validated against that analytical benchmark on the
+  committed reference case:
   - narrow gap (Ri = 8 mm, Ro = 10 mm, Re ≈ 35);
-  - wide gap (Ro = 30 mm, Re ≈ 17), as a sensitivity test.
-  - Recommended mesh: cyclic periodic boundary conditions with
-    `meanVelocityForce`, 80 × 100 × 3 cells, radial grading 1.5.
-  - Results at 0.2 mm voxel: peak velocity (Umax) error 0.011%, pressure-gradient
-    error 0.74%, flow-rate error 0.78%, mean near-wall profile error 3.64%. The
-    near-wall profile error is systematic and inherent to second-order
-    finite-volume discretization at this aspect ratio.
-  - Two literal numbers connect the record to the solver: the radii in
-    `blockMeshDict` and `Ubar` in `fvOptions`. Both are checked against the
-    record before the mesh is built, and the validation refuses to run if they
-    disagree. They were added after a stale `Ubar` produced a 0.29% shift in
-    every metric that looked like a physics regression.
+  - a wider-gap sensitivity run (Ro = 30 mm, Re ≈ 17) was done locally during
+    development but is not part of the versioned, reproducible suite.
+  - Recommended mesh: 2° axisymmetric wedge with one tangential cell, axial
+    cyclicity, 80 × 100 × 1 cells, radial grading 1.5.
+  - Results at 0.2 mm voxel: peak velocity (Umax) error 0.010%,
+    pressure-gradient error 0.0095%, flow-rate error 0.0203%, mean profile error
+    0.0046% and maximum 0.0071%. The flow-rate error is the measured geometric
+    defect of the finite wedge: its end faces are polygons with
+    sin(2°)/2° = 0.0203% less area than the annulus.
+  - Every literal connection between the record and the solver is checked before
+    the mesh is built: radii, length, kinematic viscosity, the full imposed mean
+    velocity vector and the case identity. `validation/test_guards.py` breaks
+    each one on purpose and requires rejection. They were added after a stale
+    `Ubar` produced a 0.29% shift in every metric that looked like a physics
+    regression.
 - This validation is reproducible from the repository: the cyclic case lives in
   `validation/openfoam/annulus_cyclic/`, and `scripts/check_analytic.py`
   regenerates and checks the analytical records against committed expectations.
@@ -164,7 +174,9 @@ dotnet run --project src/SGK.Geometry/ -- --auto-exit
 ## What was corrected on 2026-11-17
 
 Three defects previously listed here are closed, and the physical record schema
-moved to `sgk-mini.physical-record.v2` to mark the change:
+moved to `sgk-mini.physical-record.v3` to mark the change (v2 added the split
+between continuous and sampled peak; v3 adds the fluid/flow inputs, the voxel
+size and the shear sign convention):
 
 - **Domain wording.** `GeometryInterpretation` no longer calls the voxel body
   "the solid wall of the annular flow passage". It now states what the code
@@ -183,20 +195,47 @@ moved to `sgk-mini.physical-record.v2` to mark the change:
   is not guaranteed to reach the outer handler. Verified on two paths: a geometry
   smaller than one voxel (`Invalid volume: 0`) and an invalid `--config`.
 
+## What was corrected on 2026-11-18
+
+An independent audit of the validation found four defects that a passing check
+could not see. Each is fixed and has a focused negative test:
+
+- **A NaN field passed.** Replacing the velocities with NaN produced five NaN
+  metrics and `CHECK PASSED`, exit 0. Non-finite inputs, fields and metrics are
+  now rejected before any tolerance is evaluated.
+- **The profile was compared outside its domain.** The innermost cell centre is
+  at `r·cos(5°)`, inside the ideal wall, so the analytical solution was being
+  extrapolated. Comparing at the radial face radius changed the mean/max profile
+  error from 3.64/7.15 % to 0.0046/0.0071 %. The claim that 3.6 % was inherent
+  second-order error was wrong and has been removed everywhere.
+- **The flow was integrated with invented edges.** The old estimator put its
+  first and last edges at cell centres and used one angular layer; it reported
+  0.7845 %. The native patch flux gave the same field 0.5069 %, and the gap was
+  the estimator. The validator now uses the mesh cell volumes and OpenFOAM's own
+  fluxes, and reports signed flux, conservation, area defect and field integral
+  separately.
+- **Convergence was never checked.** Reaching `endTime` was treated as success.
+  The validator now records residuals, iterations, stopping reason, continuity,
+  absolute transverse velocity and the stability of `dpL`, `Q` and `Umax`. The
+  pressure residual is qualified rather than blindly required: in this periodic
+  case `p` is ~1e-15, so its normalised residual divides by a near-zero
+  denominator. The evidence is in `docs/pilot-checks.md`.
+
+The reference case is now a 2° axisymmetric wedge in one tangential cell instead
+of a 30° section in three. Its area defect is 0.0203 % instead of 0.507 %, and
+the flow-rate label carries only that measured defect.
+
 ## What remains open
 
-- The mesh still represents the annulus as a 30° wedge in three cells, so its
-  cross-section is a polygon with 0.507 % less area than the real annulus. That
-  is a structural property of the reference labels, not a measured error: it
-  does not explain any of the numbers above, but it is a bias the dataset should
-  not inherit. A 2D axisymmetric (`wedge`) mesh would remove it and cost a third
-  of the cells.
 - The reconstructed radii still differ from the nominal ones by 0.7 µm at
   0.2 mm voxel. That residual is the discretisation of the representation, and
   it is reported rather than corrected.
-- The flow-rate error of 0.78 % is not yet attributed. It is no longer polluted
-  by a stale input, but the split between the polygonal section, the radial
-  integration of a steep profile and the wall treatment has not been measured.
+- The remaining profile error (0.0046 % mean, 0.0071 % max) is measured on one
+  radial mesh. Angular and radial refinement have not been separated, so the
+  split between discretisation and extraction is not yet measured.
+- The wedge still has a finite angular area defect of 0.0203 %. It is measured
+  and accepted as the label's geometric bias; it is not corrected away by
+  rescaling the area.
 
 ## What is missing
 

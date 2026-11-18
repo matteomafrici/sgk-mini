@@ -27,24 +27,26 @@ cannot fail is not a piece, it is decoration.
 
 ### D0 — Repair the reference case (decision, before any label exists)
 
-The current mesh spans the wedge in three cells of 10°, so its cross-section is a
-polygon with **0.507 % less flow area** than the annulus. That is a structural
-bias in every label: it is not the explanation of any current metric (a stale
-input masked it for a while, and that is now fixed), but it is a difference
-between the labelled geometry and the real one, and the dataset should not
-inherit it.
+**Done on 2026-11-18.** The reference mesh was 30° in three cells of 10°: a
+polygon with **0.507 % less flow area** than the annulus, a structural bias in
+every label. It is now a 2° axisymmetric wedge in one tangential cell.
 
-| Option | Bias in labels | Cost |
+A finite wedge is still a polygon, not a circle. Its end faces are chords, so
+the area defect is `sin(theta)/theta`, not zero. At 2° it is 0.0203 %, measured
+from the cell volumes and reported with every result. Choosing the angle and the
+cell count together is what keeps the defect inside the budget: four cells over
+the same 2° would not change the chord defect (each face still spans the full
+angle), and a wider wedge would multiply it.
+
+| Option | Area defect | Cost |
 |---|---|---|
-| keep 3 cells | −0.51 % area | 0 |
-| 6 angular cells | −0.13 % area | 2× cells |
-| 2D axisymmetric `wedge`, 1 cell | none | **⅓ of the cells** |
-
-Recommendation: the axisymmetric wedge. It is both more accurate and cheaper,
-because the problem is axisymmetric by construction and the third dimension is
-pure overhead.
+| 30° in 3 cells (old) | −0.507 % | 3× cells |
+| 2° wedge, 1 cell (chosen) | −0.0203 % | 1× |
+| 6 angular cells, same 30° | −0.130 % | 2× cells |
 
 *Acceptance:* flow-rate error < 0.05 %, pressure-gradient error < 0.5 %.
+Measured: **0.0203 %** and **0.0095 %**, with a profile error of
+0.0046 % mean / 0.0071 % max. The case passes.
 
 ### D1 — Case definition and sampling
 
@@ -69,10 +71,13 @@ Proposed bounds for v0, chosen against the two limits rather than by taste:
 | `Ro` | 6 – 20 mm | keeps the part small enough for fast meshing |
 | `t = Ro − Ri` | 0.6 – 6 mm | lower bound is three voxels at 0.2 mm |
 | `L` | 10 – 60 mm | the cyclic case does not depend on length, so this only exercises the geometry stage |
-| `Q` | 1e-6 – 3e-5 m³/s | gives `Re` between about 16 and 1100 across these radii, comfortably laminar |
+| `Q` | 1e-6 – 3e-5 m³/s | most of the box is laminar; the corner with small `Ro+Ri` is not |
 
 `Q` is the one to check per case: `Re = 2ρQ / (πμ(Ro+Ri))`, so a large `Q` with
-small radii is the dangerous corner.
+small radii is the dangerous corner. An interior combination
+`Ro = 6.1 mm, t = 5.9 mm, Q = 3e-5 m³/s` gives `Re ≈ 3032`, above the laminar
+limit; the earlier plan's "Re ≈ 1100 for the whole box" was wrong. Sampling must
+therefore treat the limits as coupled constraints, not as independent intervals.
 
 *Acceptance:* every case satisfies both limits; the seed reproduces the file
 byte-for-byte; no case in test has a neighbour within a declared distance in
