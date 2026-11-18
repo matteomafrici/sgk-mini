@@ -32,7 +32,7 @@ endpoints. It does not start, stop or write work.
 - Source history shows recent Git commits with a bounded read-only view of
   each diff. It can be used alongside the normal editor and terminal.
 
-## Run receipts for the future trainer
+## Run receipts for training
 
 The run producer owns its outputs. The browser reads them on refresh. Under
 the configured run directory, create one subdirectory per run:
@@ -48,7 +48,8 @@ runs/<run-id>/metrics.jsonl
 new state. Use ISO-8601 timestamps. Logs are optional plain text. Append one
 object per line to `metrics.jsonl`, with numeric `step`, `train_loss` and
 `validation_loss`. The viewer skips incomplete metric lines and only plots
-training and validation losses. The current dataset has no training run.
+training and validation losses. The single-case diagnostic uses the
+comparison label Reconstruction. See the [trainer](../training/README.md).
 
 The same receipt and log format can describe a non-training run. Native field
 views currently read SGK Mini's annulus assets and OpenFOAM outputs. Add

@@ -129,6 +129,12 @@ regardless of the working directory the program is launched from.
 The local workbench shows the batch, VDB geometry, CFD profiles, checks, logs
 and source history. See the [launch command and artifact interface](workbench/README.md).
 
+## Layer 2 experiments
+
+See the [training stages](training/README.md) and
+[screening protocol](training/protocol.md) for the runnable parameter baseline.
+Its run artifacts are visible in the local workbench.
+
 ## Reproduce the validation
 
 ```bash

@@ -424,6 +424,7 @@ function inspectPoint(event) {
 }
 
 let runningMetrics = null;
+let comparisonLabel = "Validation";
 function drawLoss() {
   const plot = plotContext($("loss-chart"));
   if (!plot) return;
@@ -444,7 +445,7 @@ function drawLoss() {
   ctx.fillStyle = colors.orange;
   ctx.fillText("Training", w - 115, 19);
   ctx.fillStyle = colors.mint;
-  ctx.fillText("Validation", w - 14, 19);
+  ctx.fillText(comparisonLabel, w - 14, 19);
 }
 
 async function refreshTraining() {
@@ -457,6 +458,7 @@ async function refreshTraining() {
     $("training-meta").textContent = [view.run.status, view.run.commit, view.run.command].filter(Boolean).join(" · ");
     $("training-log").textContent = view.log || "No log published.";
     runningMetrics = view.metrics;
+    comparisonLabel = view.run.split === "reconstruction" ? "Reconstruction" : "Validation";
     drawLoss();
   } catch (error) {
     $("training-meta").textContent = error.message;
