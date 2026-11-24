@@ -2,6 +2,43 @@
 
 Reproducible validation of the sgk-mini stack.
 
+## Linux PicoGK setup
+
+The project pins PicoGK 2.2.0, which loads native runtime 26.2. Build that
+runtime from the [matching PicoGKRuntime source revision](https://github.com/leap71/PicoGKRuntime/tree/0f26321c18ed878a7820ef769c38fd5d49d39242).
+The commands below use the build configuration exercised on Arch/Omarchy.
+On other Linux distributions, use the equivalent development packages.
+
+Install Git, the .NET 9 SDK, a C++ compiler (GCC 16 was used), CMake, Ninja,
+and pkg-config. The build also uses Boost, oneTBB, Blosc, zlib, OpenGL,
+and GLFW's X11 and Wayland development dependencies. On Arch/Omarchy the
+build used `cmake`, `ninja`, `boost`, `glfw`, `blosc`, and
+`extra-cmake-modules` along with the system graphics and development packages.
+
+Run these commands from the SGK Mini repository root. The native checkout goes
+alongside SGK Mini. The recursive submodule checkout supplies OpenVDB, GLFW,
+and ImGui at the revisions expected by the native runtime.
+
+```bash
+git clone https://github.com/leap71/PicoGKRuntime.git ../PicoGKRuntime
+git -C ../PicoGKRuntime checkout --detach 0f26321c18ed878a7820ef769c38fd5d49d39242
+git -C ../PicoGKRuntime submodule update --init --recursive
+cmake -S ../PicoGKRuntime -B ../PicoGKRuntime/build -G Ninja
+cmake --build ../PicoGKRuntime/build --parallel 2
+
+dotnet build src/SGK.Geometry/ -c Debug
+runtime_dir=src/SGK.Geometry/bin/Debug/net9.0
+cp ../PicoGKRuntime/build/lib/picogk.so "$runtime_dir/"
+for name in picogk.26.2 libpicogk.26.2 picogk.26.2.so libpicogk.26.2.so; do
+  ln -sfn picogk.so "$runtime_dir/$name"
+done
+ldd "$runtime_dir/picogk.so"
+```
+
+Install any dependency that `ldd` reports as `not found`. Run the geometry
+check from a graphical Linux session with a writable `~/Documents/`
+directory for PicoGK's log. The viewer still opens with `--auto-exit`.
+
 ## Analytical (geometry → feature → physics)
 
 The C# stage generates the hollow-cylinder voxel geometry, extracts features,
@@ -14,6 +51,43 @@ dotnet run --project src/SGK.Geometry/ -- --auto-exit
 Outputs land in `output/` (gitignored). The runtime asserts the invariants
 (schema, voxel round-trip, laminar regime, wall no-slip) and fails loudly if
 they break.
+
+### Geometry command options
+
+`--auto-exit` closes the PicoGK viewer when the task finishes. Omit it to
+inspect the geometry in the viewer. `--config <file.json>` overrides the
+case inputs. Unknown configuration properties are rejected. For example,
+save the following as `annulus.json`:
+
+```json
+{
+  "CaseId": "ann-001",
+  "OuterRadiusMm": 12.0,
+  "InnerRadiusMm": 9.0,
+  "LengthMm": 40.0,
+  "VoxelSizeMm": 0.2,
+  "VolumetricFlowRateM3PerS": 0.000002
+}
+```
+
+```bash
+dotnet run --project src/SGK.Geometry/ -- --auto-exit --config annulus.json
+```
+
+An optional `OutputDirectory` sets the destination. With the default
+configuration, `output/` in the repository receives three files:
+
+| File | Contents |
+| --- | --- |
+| `hollow-cylinder.vdb` | Voxel field, saved and reloaded for the round-trip check |
+| `hollow-cylinder.features.json` | Case ID, schema, voxel size, volume, and bounding box |
+| `hollow-cylinder.physical-case.json` | Reconstructed radii, fluid properties, velocity profile, pressure drop, and signed wall shear stresses |
+
+The analytical model recovers the inner radius from the measured voxel
+volume and bounding-box dimensions. At 0.2 mm voxel size it recovers
+7.9993 mm against the nominal 8 mm. See the
+[voxel resolution measurements](voxel-resolution-curve.md) for the trade-off
+between pitch, runtime, memory, and volume error.
 
 ## CFD cross-check (OpenFOAM)
 
@@ -125,13 +199,14 @@ so its normalised residual divides by a near-zero denominator and cannot reach
 
 ## Figures
 
-`plot_annulus.py` (run automatically by `run_annulus.sh`) writes the figures
-embedded in the top-level README to `validation/figures/`:
+`plot_annulus.py` writes the reference figures to `validation/figures/`.
+The CFD runner calls it by default. Set `SKIP_FIGURES=1` to run the numerical
+checks without Matplotlib:
 
-- `01_velocity_profile.png` — radial profile, CFD vs analytical, three stations;
-- `02_fields_velocity.png` — meridional velocity maps (CFD, analytical, difference);
-- `03_pressure.png` — reconstructed pressure drop vs analytical;
-- `04_metrics_summary.png` — value comparison (CFD vs analytical, error, criterion).
+- [Radial profile at three axial stations](figures/01_velocity_profile.png)
+- [Meridional velocity maps for CFD, analytical solution, and their difference](figures/02_fields_velocity.png)
+- [Reconstructed and analytical pressure drop](figures/03_pressure.png)
+- [Summary of metrics and acceptance criteria](figures/04_metrics_summary.png)
 
 To regenerate them alone (after a solver run):
 

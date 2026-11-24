@@ -5,8 +5,20 @@ stages are the parameter MLP and meridional FNO. GINO and the optional
 physics-loss comparison are further milestones with the same evaluation
 contract.
 
-Use the existing `sgk-neuralop` environment. The MLP uses two CPU threads by
-default. The training data is read from the prepared, hashed batch index.
+The training commands use a separate Python environment. Install PyTorch for
+the intended CPU or CUDA runtime using the [PyTorch installation guide](https://pytorch.org/get-started/locally/).
+Install NumPy for both trainers and NeuralOperator for the FNO:
+
+```bash
+python3 -m venv "$HOME/data/venvs/sgk-neuralop"
+source "$HOME/data/venvs/sgk-neuralop/bin/activate"
+# Install PyTorch here using the command for your platform and device.
+python -m pip install numpy neuraloperator==2.0.0
+```
+
+The MLP uses two CPU threads by default. Both trainers read the prepared,
+hashed batch index. See the [conversion commands](../pipeline/README.md#prepared-model-inputs)
+to generate it.
 
 ```bash
 ~/data/venvs/sgk-neuralop/bin/python training/train_annulus.py mlp-smoke

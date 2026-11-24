@@ -1,9 +1,8 @@
 # SGK Mini state and handoff
 
 This note records the verified annulus pilot at `4a4fe68`, the first CFD
-batch and the subsequent review of the four-layer workflow. Use the SGK repository
-README (locally `/mnt/n/sgk/README.md`) as the source for the wider project.
-Use this note to resume the mini.
+batch, and the MLP and FNO validation baselines. The main SGK repository
+README describes the wider project.
 
 ## Current state
 
@@ -26,8 +25,8 @@ Use this note to resume the mini.
   The model-input index is under
   `~/data/datasets/sgk-mini/annulus-v1/model-inputs-v1/`. The audit matched
   case identity and split, verified hashes and normalization round trips,
-  and reproduced saved-field flow on every case. Training, search and the
-  AI interface remain open. CFD still uses reconstructed annulus dimensions.
+  and reproduced saved-field flow on every case. CFD uses reconstructed
+  annulus dimensions.
 - The first [Layer 2 diagnostic](../training/README.md) passed. The parameter
   MLP reconstructed one training case in 4.72 s on CPU (300 epochs).
   Its field error against CFD was 0.5653% and its integrated-flow error was
