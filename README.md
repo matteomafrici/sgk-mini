@@ -1,65 +1,114 @@
 # SGK Mini
 
 [SGK (Space Generative Kernel)](https://github.com/matteomafrici/sgk) is a
-project for propulsion design. The idea is to use trained models to evaluate
-many designs quickly, then check selected candidates with a reference solver.
+project for propulsion analysis and design. In the proposed workflow, a
+physical case and a set of design parameters define the geometry. Trained
+models evaluate candidates as the search decides which change to try next.
+Reference solvers supply training data and verify selected designs.
 
-SGK Mini is where we test the whole toolchain before taking on a propulsion
-case. We use laminar water flow between two concentric cylinders because the
-analytical solution gives us a reference for every flow prediction. The goal is
-to take a request such as a target flow rate and a pressure drop limit, find
-dimensions that meet it, and verify the design in OpenFOAM.
+SGK Mini is a testbed for that workflow. The aim is to exercise all four
+layers on a controlled problem, from an explicit design request to a
+reference-checked result. Keeping the physics simple makes it possible to
+trace a wrong design decision back to the geometry, the data, the predictor,
+or the search. In a propulsion application, the physics, reference solver,
+and model outputs will depend on the conditions and on the design decision
+being made.
 
-| SGK layer | What it does in SGK Mini | Status |
+## Physical case
+
+The benchmark is steady, fully developed laminar water flow through a
+concentric annulus, the gap between two cylinders. A case specifies the radii,
+length, fluid properties, and flow rate. For this problem the velocity
+profile and the pressure gradient needed to drive the flow are known
+analytically.
+
+PicoGK generates the voxel geometry. The volume and bounding box give the
+dimensions of an equivalent annulus. OpenFOAM builds a periodic wedge mesh
+from those dimensions. For the model, we sample the VDB surface and signed
+distances and put them in the same coordinate frame as the CFD cell centres.
+We use the analytical solution to check the CFD and compare transferred
+fields with the original CFD samples to check the mapping onto model grids.
+
+The annulus gives the models a controlled test. Its normalized velocity
+profile depends on one shape parameter, the ratio of the inner and outer
+radii. We can test the data and inference pipeline on this family. Measuring
+the benefit of a model that reads geometry directly requires more varied shapes.
+
+## How the SGK layers map to the Mini
+
+| SGK layer | Role in SGK | Experiment in SGK Mini |
 | --- | --- | --- |
-| 1. Preliminary physics and geometry | Build the annulus with PicoGK, recover its dimensions and compute the analytical flow. | Verified on the reference case |
-| 2. Fast physical evaluation | Use OpenFOAM for reference data and train models that predict the velocity field, flow rate and pressure gradient. | MLP and FNO passed validation |
-| 3. Design search | Vary the annulus dimensions within bounds and verify selected candidates with the reference solver. | Planned |
-| 4. User interface | Turn a design request into case inputs and show the geometry, decisions and verification results. | Workbench can inspect runs. Request and execution still to build. |
+| 1. Preliminary physics and geometry | Resolve the case inputs and generate geometry deterministically. | Build a voxel annulus from explicit dimensions, recover its dimensions, and compute the analytical flow for the given conditions. |
+| 2. Fast physical evaluation | Use a trained model to predict fields and engineering quantities from geometry and operating conditions. | Use checked CFD fields as training targets. Compare a parameter model, a grid model, and a geometry-informed model on axial velocity and driving pressure gradient. Integrate the predicted velocity to check the flow rate. |
+| 3. Design search | Propose the next change from the objectives, constraints, remaining budget, and previous evaluations. | Test a learned policy that sends new annulus dimensions back to Layer 1. Compare the designs it finds with those from a parameter sweep at equal budget. |
+| 4. User interface | Turn a user request into explicit inputs and expose the case, decisions, and results. | Run the same design case from a structured request and its equivalent user-facing input. Keep units, assumptions, candidate history, and verification results visible. |
+
+The reference and design paths have different jobs. In the reference path,
+OpenFOAM provides training targets after checks on the mesh, conservation,
+convergence, and agreement with the analytical solution. In the design
+path, the search proposes parameters, Layer 1 rebuilds the geometry, and
+Layer 2 evaluates the new case. Selected candidates go back to OpenFOAM
+for verification. If the solver rejects a candidate, the search can use that
+result to try again within the remaining budget or report why it stopped.
 
 ## Current status
 
-All **20 CFD cases** passed the acceptance checks and were converted to model
-inputs. The split is 11 training, 4 validation, 3 test and 2 stress cases.
+The voxel, analytical, and OpenFOAM checks pass on the reference case.
+All **20 CFD cases** in the first batch passed the acceptance checks and were
+converted to model inputs. The split is 11 training, 4 validation, 3 test,
+and 2 stress cases. The workbench is read-only. The design search and the
+interface for running a design request are still to be built.
 
 ### Training results
 
-The multilayer perceptron (MLP) uses the annulus parameters. The Fourier neural
-operator (FNO) also uses a 2D signed distance field. Both trained for 300 epochs
-on the same 11 cases and passed every threshold on the four validation cases.
-Errors are the worst across those four cases, measured against OpenFOAM.
+The multilayer perceptron (MLP) uses the reconstructed radius ratio and a
+normalized radial coordinate. The Fourier neural operator (FNO) adds a
+VDB-derived signed distance field on a regular radial and axial grid. Both
+trained for 300 epochs on the same 11 cases and passed the thresholds on
+all four validation cases. The test and stress splits remain reserved for
+final evaluation.
 
-| Metric | MLP | FNO |
-| --- | ---: | ---: |
-| Velocity field error | 0.149% | 0.067% |
-| Near-wall velocity error | 0.233% | 0.192% |
-| Sampled peak velocity error | 0.153% | 0.077% |
-| Flow rate error | 0.024% | 0.018% |
-| Pressure gradient error | 0.191% | 0.040% |
-| Training time | 3.48 s (CPU) | 36.40 s (GPU) |
+| Metric | Reference | MLP | FNO |
+| --- | --- | ---: | ---: |
+| Velocity field error | OpenFOAM | 0.149% | 0.067% |
+| Near-wall velocity error | OpenFOAM | 0.233% | 0.192% |
+| Sampled peak velocity error | OpenFOAM | 0.153% | 0.077% |
+| Integrated flow rate error | Imposed flow rate | 0.024% | 0.018% |
+| Driving pressure gradient error | OpenFOAM | 0.191% | 0.040% |
+| Training time | | 3.48 s (CPU) | 36.40 s (GPU) |
 
-The test and stress cases are reserved for final evaluation.
+Errors are the largest observed across the four validation cases. The
+[training report](training/README.md) gives the thresholds, run settings,
+and checks against the analytical solution. The
+[batch report](pipeline/reports/batch-v1.md) describes the dataset and its
+acceptance checks.
 
-See the [training runs and thresholds](training/README.md) and the
-[batch report](pipeline/reports/batch-v1.md).
+### What remains
 
-## What remains
+1. **Close the geometry-to-model path on one case.** Feed VDB surface samples
+   and signed distances to GINO, the geometry-informed neural operator.
+   Check coverage from surface to grid and from grid to CFD sample points,
+   especially near the walls. Train on that case, reload the checkpoint,
+   and compare the field and engineering quantities with both references.
+2. **Evaluate the predictors on reserved cases.** Train and select GINO on
+   the existing training and validation splits. Freeze the MLP, FNO, and GINO
+   checkpoints, then run the same evaluator on the test and stress splits.
+   A comparison with physics residuals can follow using the same model,
+   splits, and training budget.
+3. **Test design search.** Compare a learned proposal policy with a parameter
+   sweep at equal evaluation budget. Start with analytical feedback, then
+   repeat with a frozen predictor. Measure the quality of the best
+   reference-verified candidate, the number of reference calls, and how the
+   search handles a prediction that the solver rejects. Compare the cost of
+   predictor-driven search with direct reference evaluation at comparable
+   design quality. Record data preparation and training costs separately.
+4. **Run the full design loop from a user request.** Check that the request
+   leads to the same case and results as a hand-written configuration. Save
+   the inputs, candidate history, and OpenFOAM verification so another
+   reader can reproduce the run.
 
-1. Try the geometry-informed neural operator (GINO) on one training case. Feed
-   it the VDB surface samples, reload the saved model and check its predictions
-   against the analytical solution and OpenFOAM.
-2. Train GINO on the full training split and check it on validation. Freeze
-   the three models, then use one evaluator for MLP, FNO and GINO on the five
-   reserved test and stress cases.
-3. Run a design search. Use the analytical solution first, then a frozen
-   predictor. Compare against a simple parameter sweep with the same budget
-   and verify the selected design in OpenFOAM. Check that a rejected design
-   leads to another candidate or a clear stop.
-4. Run the whole loop from a structured request. Save the inputs, candidate
-   history and verification results so someone else can repeat the run.
-
-See the [project handoff](docs/sgk-mini-status.md#next-steps) for the checks
-and implementation details.
+The [project handoff](docs/sgk-mini-status.md#next-steps) records the
+implementation checks for each stage.
 
 ## Quick start
 
