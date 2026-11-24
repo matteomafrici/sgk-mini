@@ -1,30 +1,38 @@
 # SGK Mini
 
-SGK Mini is the validation testbed for the Space Generative Kernel (SGK).
-It builds a voxel model of a hollow cylinder with PicoGK, recovers the
-dimensions of the annular flow passage, and compares a closed-form solution
-for fully developed laminar flow with an OpenFOAM simulation. A batch of
-these cases provides reference data for testing learned flow predictors.
-
-The reference solver builds its mesh from the recovered annulus dimensions.
-The pipeline also prepares voxel surface samples and signed distances for
-geometry-aware models.
+SGK Mini checks the Space Generative Kernel (SGK) workflow on one problem:
+laminar water flow through the gap between two concentric cylinders. PicoGK
+builds the voxel geometry. OpenFOAM uses the recovered dimensions to solve the
+flow, which we check against the analytical solution. The CFD results then
+serve as training data for models that predict the velocity field.
 
 ## Current status
 
-- The reference case passed the analytical and CFD checks. All **20 CFD
-  batch cases** were accepted and converted to model inputs.
-- The MLP and meridional Fourier neural operator (FNO) passed all screening
-  gates on the four validation cases. Their maximum field errors against
-  CFD were **0.149%** and **0.067%**, respectively. The three test cases
-  and two stress cases remain reserved for held-out evaluation.
-- **Next:** verify GINO, the geometry-informed neural operator, on one
-  real training case, from VDB surface samples to a reloaded checkpoint.
-  A common held-out evaluator and the design search loop remain open.
+All **20 CFD cases** passed the acceptance checks and were converted to model
+inputs. The split is 11 training, 4 validation, 3 test and 2 stress cases.
 
-See the [batch report](pipeline/reports/batch-v1.md),
-[training results](training/README.md), and
-[project handoff](docs/sgk-mini-status.md).
+### Training results
+
+The multilayer perceptron (MLP) uses the annulus parameters. The Fourier neural
+operator (FNO) also uses a 2D signed distance field. Both trained for 300 epochs
+on the same 11 cases and passed every threshold on the four validation cases.
+Errors are the worst across those four cases, measured against OpenFOAM.
+
+| Metric | MLP | FNO |
+| --- | ---: | ---: |
+| Velocity field error | 0.149% | 0.067% |
+| Near-wall velocity error | 0.233% | 0.192% |
+| Sampled peak velocity error | 0.153% | 0.077% |
+| Flow rate error | 0.024% | 0.018% |
+| Pressure gradient error | 0.191% | 0.040% |
+| Training time | 3.48 s (CPU) | 36.40 s (GPU) |
+
+The test and stress cases are still reserved for final evaluation. Next we
+will try the geometry-informed neural operator (GINO) on one training case,
+from VDB surface samples to a reloaded checkpoint.
+
+See the [training runs and thresholds](training/README.md) and the
+[batch report](pipeline/reports/batch-v1.md).
 
 ## Quick start
 
@@ -71,6 +79,13 @@ analytical peak speed were **0.0046%** and **0.0071%**. The flow-rate error
 was **0.0203%**, consistent with the measured area deficit of the finite
 wedge. See the [full metrics, assumptions, and figures](validation/README.md#cfd-cross-check-openfoam).
 
+## Workbench
+
+The [workbench](workbench/README.md) shows the geometry, CFD samples, case
+checks and training runs.
+
+![SGK Workbench showing the 20-case batch and an annulus with its CFD samples](workbench/figures/overview.png)
+
 ## Repository guide
 
 | Path | Contents |
@@ -79,7 +94,6 @@ wedge. See the [full metrics, assumptions, and figures](validation/README.md#cfd
 | [validation/](validation/README.md) | OpenFOAM case, reference records, and numerical checks |
 | [pipeline/](pipeline/README.md) | Batch manifests, CFD orchestration, and conversion to model inputs |
 | [training/](training/README.md) | MLP and FNO commands, validation protocol, and results |
-| [workbench/](workbench/README.md) | Local read-only viewer for case geometry, checks, and runs |
 
 Generated geometry and solver fields, prepared datasets, and model weights
 are produced locally. The committed inputs and reports document how to
