@@ -1,22 +1,28 @@
 # SGK Workbench
 
 The workbench is a local, read-only viewer for SGK Mini development artifacts.
-It uses the existing Python environment and NumPy. It requires no browser
-build, external service or JavaScript dependencies.
+It runs with Python and NumPy.
 
-From the repository root, start it in a terminal and open
-[127.0.0.1:8765](http://127.0.0.1:8765/):
+A fresh clone needs a generated dataset. Follow the
+[CFD batch instructions](../pipeline/README.md#initial-cfd-batch) to produce
+the dataset's `index.json` and case records. Follow the
+[conversion instructions](../pipeline/README.md#prepared-model-inputs) to
+enable the 3D geometry and field views. Run receipts are optional.
+
+From the repository root, use a Python environment with NumPy installed:
 
 ```bash
-~/data/venvs/sgk-mini/bin/python workbench/serve.py
+python3 workbench/serve.py --dataset /path/to/annulus-v1
 ```
 
-Use `--dataset` for a different compatible batch root, `--runs` for a different
-run receipt directory and `--port` for a different loopback port. The defaults
-read `~/data/datasets/sgk-mini/annulus-v1/` and its `runs/` subdirectory.
-Stop the server with Ctrl+C. The server binds to loopback, accepts reads from
-the local host and serves only the named application assets and artifact
-endpoints. It does not start, stop or write work.
+Replace the example path with the directory containing `index.json`.
+If you used the default batch location, `~/data/datasets/sgk-mini/annulus-v1/`,
+you can omit `--dataset`.
+
+Open the URL printed in the terminal on the same computer. The default is
+[127.0.0.1:8765](http://127.0.0.1:8765/). Use `--port` if that port is in use
+and `--runs` if your training receipts are outside the dataset's `runs/`
+subdirectory. Stop the server with Ctrl+C.
 
 ## What the workbench reads
 
