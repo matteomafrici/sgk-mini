@@ -1,10 +1,21 @@
 # SGK Mini
 
-SGK Mini checks the Space Generative Kernel (SGK) workflow on one problem:
-laminar water flow through the gap between two concentric cylinders. PicoGK
-builds the voxel geometry. OpenFOAM uses the recovered dimensions to solve the
-flow, which we check against the analytical solution. The CFD results then
-serve as training data for models that predict the velocity field.
+[SGK (Space Generative Kernel)](https://github.com/matteomafrici/sgk) is a
+project for propulsion design. The idea is to use trained models to evaluate
+many designs quickly, then check selected candidates with a reference solver.
+
+SGK Mini is where we test the whole toolchain before taking on a propulsion
+case. We use laminar water flow between two concentric cylinders because the
+analytical solution gives us a reference for every flow prediction. The goal is
+to take a request such as a target flow rate and a pressure drop limit, find
+dimensions that meet it, and verify the design in OpenFOAM.
+
+| SGK layer | What it does in SGK Mini | Status |
+| --- | --- | --- |
+| 1. Preliminary physics and geometry | Build the annulus with PicoGK, recover its dimensions and compute the analytical flow. | Verified on the reference case |
+| 2. Fast physical evaluation | Use OpenFOAM for reference data and train models that predict the velocity field, flow rate and pressure gradient. | MLP and FNO passed validation |
+| 3. Design search | Vary the annulus dimensions within bounds and verify selected candidates with the reference solver. | Planned |
+| 4. User interface | Turn a design request into case inputs and show the geometry, decisions and verification results. | Workbench can inspect runs. Request and execution still to build. |
 
 ## Current status
 
@@ -27,12 +38,28 @@ Errors are the worst across those four cases, measured against OpenFOAM.
 | Pressure gradient error | 0.191% | 0.040% |
 | Training time | 3.48 s (CPU) | 36.40 s (GPU) |
 
-The test and stress cases are still reserved for final evaluation. Next we
-will try the geometry-informed neural operator (GINO) on one training case,
-from VDB surface samples to a reloaded checkpoint.
+The test and stress cases are reserved for final evaluation.
 
 See the [training runs and thresholds](training/README.md) and the
 [batch report](pipeline/reports/batch-v1.md).
+
+## What remains
+
+1. Try the geometry-informed neural operator (GINO) on one training case. Feed
+   it the VDB surface samples, reload the saved model and check its predictions
+   against the analytical solution and OpenFOAM.
+2. Train GINO on the full training split and check it on validation. Freeze
+   the three models, then use one evaluator for MLP, FNO and GINO on the five
+   reserved test and stress cases.
+3. Run a design search. Use the analytical solution first, then a frozen
+   predictor. Compare against a simple parameter sweep with the same budget
+   and verify the selected design in OpenFOAM. Check that a rejected design
+   leads to another candidate or a clear stop.
+4. Run the whole loop from a structured request. Save the inputs, candidate
+   history and verification results so someone else can repeat the run.
+
+See the [project handoff](docs/sgk-mini-status.md#next-steps) for the checks
+and implementation details.
 
 ## Quick start
 
